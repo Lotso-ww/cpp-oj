@@ -208,7 +208,7 @@ mysql -u lotso oj_system
 ### Phase 1 - 基础设施
 - [✅️] 项目目录结构搭建
 - [✅️] MySQL 数据库初始化脚本
-- [] cpp-httplib 基础 HTTP 服务
+- [✅️] cpp-httplib 基础 HTTP 服务
 - [] 配置管理
 - [] 日志封装 
 - [] 数据库连接池实现
