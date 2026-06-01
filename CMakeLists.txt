@@ -18,7 +18,6 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/src
     ${MYSQL_INCLUDE_DIRS}
     ${YAML_INCLUDE_DIRS}
-    ${CMAKE_SOURCE_DIR}/src/utils
 )
 
 set(SOURCES
@@ -44,7 +43,7 @@ set(TEST_SOURCES
     src/utils/config.cc
 )
 
-set(LIBRARIES httplib pthread)
+set(LIBRARIES pthread yaml-cpp)
 if(MYSQL_LIBRARIES)
     list(APPEND LIBRARIES ${MYSQL_LIBRARIES})
 endif()
