@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/config_test.dir/src/utils/config.cc.o CMakeFiles/config_test.dir/tests/unit/config_test.cc.o -o bin/config_test  /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a -lyaml-cpp -lpthread 

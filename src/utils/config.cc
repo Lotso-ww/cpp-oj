@@ -24,11 +24,31 @@ struct Config::Impl {
 };
 
 Config::Config() : pImpl(std::make_unique<Impl>()) {
+    reset();
 }
 
 Config& Config::getInstance() {
     static Config instance;
     return instance;
+}
+
+void Config::reset() {
+    pImpl->databaseHost.clear();
+    pImpl->databasePort = 0;
+    pImpl->databaseUsername.clear();
+    pImpl->databasePassword.clear();
+    pImpl->databaseName.clear();
+
+    pImpl->serverHost.clear();
+    pImpl->serverPort = 0;
+
+    pImpl->connectionPoolSize = 0;
+    pImpl->requestTimeout = 0;
+    pImpl->compileTimeout = 0;
+    pImpl->runTimeout = 0;
+
+    pImpl->logLevel.clear();
+    pImpl->logFile.clear();
 }
 
 bool Config::load(const std::string& configPath) {

@@ -11,6 +11,7 @@ public:
     static Config& getInstance();
 
     bool load(const std::string& configPath);
+    void reset();
 
     std::string getDatabaseHost() const;
     int getDatabasePort() const;
