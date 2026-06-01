@@ -8,10 +8,12 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(MYSQL mysqlclient REQUIRED)
+pkg_check_modules(YAML yaml-cpp REQUIRED)
 
 include_directories(
     ${CMAKE_SOURCE_DIR}/src
     ${MYSQL_INCLUDE_DIRS}
+    ${YAML_INCLUDE_DIRS}
 )
 
 set(SOURCES
@@ -37,6 +39,7 @@ add_executable(cpp-oj ${SOURCES})
 
 target_link_libraries(cpp-oj
     ${MYSQL_LIBRARIES}
+    ${YAML_LIBRARIES}
     httplib
     pthread
 )
