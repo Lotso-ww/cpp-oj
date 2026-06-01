@@ -178,17 +178,27 @@ CREATE TABLE users (
 | 数据库类型 | MySQL 8.0 |
 | 数据库名 | `oj_system` |
 | 字符集 | utf8mb4 |
-| 连接用户 | 同系统用户名（使用 `auth_socket` 插件认证） |
+| 连接用户 | `lotso`（无密码，`auth_socket` 插件认证） |
 | 初始化脚本 | `database/init.sql` |
 
 ### 初始化步骤
 
 ```bash
 # 1. 创建 MySQL 用户（需 sudo 权限）
-sudo mysql -e "CREATE USER IF NOT EXISTS '你的用户名'@'localhost' IDENTIFIED WITH auth_socket; GRANT ALL ON *.* TO '你的用户名'@'localhost';"
+sudo mysql -e "CREATE USER IF NOT EXISTS 'lotso'@'localhost' IDENTIFIED WITH auth_socket; GRANT ALL ON *.* TO 'lotso'@'localhost';"
 
 # 2. 执行初始化脚本
-mysql -u 你的用户名 < database/init.sql
+mysql -u lotso < /home/lotso/project/cpp-oj/database/init.sql
+```
+
+### 数据库访问
+
+```bash
+# 连接 MySQL
+mysql -u lotso
+
+# 连接指定数据库
+mysql -u lotso oj_system
 ```
 
 ---
@@ -197,7 +207,7 @@ mysql -u 你的用户名 < database/init.sql
 
 ### Phase 1 - 基础设施
 - [✅️] 项目目录结构搭建
-- [] MySQL 数据库初始化脚本
+- [✅️] MySQL 数据库初始化脚本
 - [] cpp-httplib 基础 HTTP 服务
 - [] 配置管理
 - [] 日志封装 
