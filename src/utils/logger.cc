@@ -114,14 +114,7 @@ Logger::LogMessage::~LogMessage()
     }
 }
 
-template <typename T>
-Logger::LogMessage &Logger::LogMessage::operator<<(const T &info)
-{
-    std::stringstream ss;
-    ss << info;
-    _loginfo += ss.str();
-    return *this;
-}
+
 
 Logger::LogMessage Logger::operator()(LogLevel level, const std::string &filename, int line)
 {

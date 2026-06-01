@@ -70,7 +70,13 @@ public:
         ~LogMessage();
 
         template <typename T>
-        LogMessage &operator<<(const T &info);
+        LogMessage &operator<<(const T &info)
+        {
+            std::stringstream ss;
+            ss << info;
+            _loginfo += ss.str();
+            return *this;
+        }
 
     private:
         std::string _currenttime;

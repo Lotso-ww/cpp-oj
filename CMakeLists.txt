@@ -16,6 +16,7 @@ endif()
 
 include_directories(
     ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/utils
     ${MYSQL_INCLUDE_DIRS}
     ${YAML_INCLUDE_DIRS}
 )
@@ -41,6 +42,7 @@ set(SOURCES
 
 set(TEST_SOURCES
     src/utils/config.cc
+    src/utils/logger.cc
 )
 
 set(LIBRARIES pthread yaml-cpp)
@@ -59,3 +61,7 @@ enable_testing()
 add_executable(config_test ${TEST_SOURCES} tests/unit/config_test.cc)
 target_link_libraries(config_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread)
 add_test(NAME config_test COMMAND config_test)
+
+add_executable(logger_test ${TEST_SOURCES} tests/unit/logger_test.cc)
+target_link_libraries(logger_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread)
+add_test(NAME logger_test COMMAND logger_test)
