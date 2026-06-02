@@ -18,6 +18,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/src/utils
     ${CMAKE_SOURCE_DIR}/src/db
+    ${CMAKE_SOURCE_DIR}/src/model
     ${MYSQL_INCLUDE_DIRS}
     ${YAML_INCLUDE_DIRS}
 )
@@ -45,6 +46,9 @@ set(TEST_SOURCES
     src/utils/config.cc
     src/utils/logger.cc
     src/db/connection_pool.cc
+    src/model/problem.cc
+    src/model/test_case.cc
+    src/model/user.cc
 )
 
 set(LIBRARIES pthread yaml-cpp mysqlclient)
@@ -61,7 +65,7 @@ target_compile_options(cpp-oj PRIVATE -Wall -Wextra)
 
 enable_testing()
 add_executable(config_test ${TEST_SOURCES} tests/unit/config_test.cc)
-target_link_libraries(config_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread)
+target_link_libraries(config_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient)
 add_test(NAME config_test COMMAND config_test)
 
 add_executable(logger_test ${TEST_SOURCES} tests/unit/logger_test.cc)
@@ -71,3 +75,7 @@ add_test(NAME logger_test COMMAND logger_test)
 add_executable(connection_pool_test ${TEST_SOURCES} tests/unit/connection_pool_test.cc)
 target_link_libraries(connection_pool_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient)
 add_test(NAME connection_pool_test COMMAND connection_pool_test)
+
+add_executable(model_test ${TEST_SOURCES} tests/unit/problem_test.cc)
+target_link_libraries(model_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient)
+add_test(NAME model_test COMMAND model_test)
