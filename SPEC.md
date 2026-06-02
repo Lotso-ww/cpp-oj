@@ -216,7 +216,7 @@ mysql -u lotso oj_system
 ### Phase 2 - 题目模块
 - [✅️] 题目数据模型映射
 - [✅️] 题目 CRUD API（管理员）
-- [] 题目列表/详情 API（用户）
+- [✅️] 题目列表/详情 API（用户）
 
 ### Phase 3 - 代码执行模块
 - [] C++ 代码编译（fork + g++）

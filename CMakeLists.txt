@@ -20,6 +20,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/src/db
     ${CMAKE_SOURCE_DIR}/src/model
     ${CMAKE_SOURCE_DIR}/src/handler
+    ${CMAKE_SOURCE_DIR}/src/service
     ${MYSQL_INCLUDE_DIRS}
     ${YAML_INCLUDE_DIRS}
     /usr/include/jsoncpp
@@ -85,3 +86,11 @@ add_test(NAME model_test COMMAND model_test)
 add_executable(admin_handler_test ${TEST_SOURCES} src/handler/admin_handler.cc tests/unit/admin_handler_test.cc)
 target_link_libraries(admin_handler_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient jsoncpp)
 add_test(NAME admin_handler_test COMMAND admin_handler_test)
+
+add_executable(problem_handler_test ${TEST_SOURCES} src/handler/problem_handler.cc src/service/problem_service.cc tests/unit/problem_handler_test.cc)
+target_link_libraries(problem_handler_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient jsoncpp)
+add_test(NAME problem_handler_test COMMAND problem_handler_test)
+
+add_executable(problem_service_test ${TEST_SOURCES} src/service/problem_service.cc tests/unit/problem_service_test.cc)
+target_link_libraries(problem_service_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient jsoncpp)
+add_test(NAME problem_service_test COMMAND problem_service_test)
