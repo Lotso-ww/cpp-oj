@@ -1,8 +1,8 @@
 #pragma once
 
-#include <functional>
 #include <string>
 #include <unordered_map>
+#include "../utils/httplib.h"
 
 class Router {
 public:
@@ -14,6 +14,8 @@ public:
     void del(const std::string& path, Handler handler);
 
     bool route(const std::string& method, const std::string& path, int sock);
+
+    static httplib::Server& setupServer(httplib::Server& svr);
 
 private:
     struct Route {

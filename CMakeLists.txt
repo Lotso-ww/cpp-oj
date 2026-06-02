@@ -19,8 +19,10 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/src/utils
     ${CMAKE_SOURCE_DIR}/src/db
     ${CMAKE_SOURCE_DIR}/src/model
+    ${CMAKE_SOURCE_DIR}/src/handler
     ${MYSQL_INCLUDE_DIRS}
     ${YAML_INCLUDE_DIRS}
+    /usr/include/jsoncpp
 )
 
 set(SOURCES
@@ -51,7 +53,7 @@ set(TEST_SOURCES
     src/model/user.cc
 )
 
-set(LIBRARIES pthread yaml-cpp mysqlclient)
+set(LIBRARIES pthread yaml-cpp mysqlclient jsoncpp)
 if(MYSQL_LIBRARIES)
     list(APPEND LIBRARIES ${MYSQL_LIBRARIES})
 endif()
@@ -79,3 +81,7 @@ add_test(NAME connection_pool_test COMMAND connection_pool_test)
 add_executable(model_test ${TEST_SOURCES} tests/unit/problem_test.cc)
 target_link_libraries(model_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient)
 add_test(NAME model_test COMMAND model_test)
+
+add_executable(admin_handler_test ${TEST_SOURCES} src/handler/admin_handler.cc tests/unit/admin_handler_test.cc)
+target_link_libraries(admin_handler_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient jsoncpp)
+add_test(NAME admin_handler_test COMMAND admin_handler_test)
