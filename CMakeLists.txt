@@ -37,6 +37,8 @@ set(SOURCES
     src/service/problem_service.cc
     src/service/executor_service.cc
     src/service/auth_service.cc
+    src/service/session.cc
+    src/service/session_manager.cc
     src/model/problem.cc
     src/model/test_case.cc
     src/model/user.cc
@@ -92,9 +94,21 @@ target_link_libraries(problem_handler_test /usr/lib/x86_64-linux-gnu/libgtest.a 
 add_test(NAME problem_handler_test COMMAND problem_handler_test)
 
 add_executable(problem_service_test ${TEST_SOURCES} src/service/problem_service.cc tests/unit/problem_service_test.cc)
-target_link_libraries(problem_service_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient jsoncpp)
+target_link_libraries(problem_service_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient)
 add_test(NAME problem_service_test COMMAND problem_service_test)
 
 add_executable(executor_test ${TEST_SOURCES} src/service/executor_service.cc tests/unit/executor_test.cc)
-target_link_libraries(executor_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient jsoncpp)
+target_link_libraries(executor_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient)
 add_test(NAME executor_test COMMAND executor_test)
+
+add_executable(session_test ${TEST_SOURCES} src/service/session.cc src/service/session_manager.cc tests/unit/session_test.cc)
+target_link_libraries(session_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient)
+add_test(NAME session_test COMMAND session_test)
+
+add_executable(auth_service_test ${TEST_SOURCES} src/service/session.cc src/service/session_manager.cc src/service/auth_service.cc src/model/user.cc tests/unit/auth_service_test.cc)
+target_link_libraries(auth_service_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient jsoncpp)
+add_test(NAME auth_service_test COMMAND auth_service_test)
+
+add_executable(auth_handler_test ${TEST_SOURCES} src/handler/auth_handler.cc src/service/auth_service.cc src/service/session.cc src/service/session_manager.cc src/model/user.cc tests/unit/auth_handler_test.cc)
+target_link_libraries(auth_handler_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient jsoncpp)
+add_test(NAME auth_handler_test COMMAND auth_handler_test)

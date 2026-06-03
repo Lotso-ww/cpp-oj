@@ -226,7 +226,7 @@ mysql -u lotso oj_system
 - [✅️] SubmitHandler 接入 ExecutorService
 
 ### Phase 4 - 登录注册模块
-- [] Session/Cookie 认证机制
+- [✅️] Session/Cookie 认证机制
 - [] 用户注册 API（用户名唯一性校验）
 - [] 用户登录 API
 - [] 用户退出登录
