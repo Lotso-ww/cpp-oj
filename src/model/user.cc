@@ -1,6 +1,7 @@
 #include "user.h"
 #include "../db/connection_pool.h"
 #include "../utils/logger.h"
+#include "../utils/password.h"
 #include <mysql/mysql.h>
 #include <sstream>
 #include <iomanip>
@@ -108,10 +109,17 @@ int User::save() {
         return -1;
     }
 
+    std::string hashedPassword = PasswordUtil::hashPassword(password_);
+    if (hashedPassword.empty()) {
+        LOG(LogModule::LogLevel::ERROR) << "Failed to hash password";
+        ConnectionPool::getInstance().releaseConnection(conn);
+        return -1;
+    }
+
     std::ostringstream query;
     query << "INSERT INTO users (username, password, role) VALUES ('"
           << escapeString(conn, username_) << "', '"
-          << escapeString(conn, password_) << "', '"
+          << escapeString(conn, hashedPassword) << "', '"
           << escapeString(conn, role_) << "')";
 
     if (mysql_query(conn, query.str().c_str()) != 0) {
@@ -127,7 +135,7 @@ int User::save() {
 }
 
 bool User::validatePassword(const std::string& password) const {
-    return password_ == password;
+    return PasswordUtil::verifyPassword(password, password_);
 }
 
 bool User::update() {

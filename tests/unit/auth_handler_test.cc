@@ -336,8 +336,12 @@ TEST_F(AuthHandlerTest, LogoutWithoutCookie) {
 
 TEST_F(AuthHandlerTest, RegisterAndLoginWorkflow) {
     {
+        std::random_device rd;
+        std::string uniqueId = std::to_string(rd()) + "_" + std::to_string(time(nullptr));
+        std::string username = "workflow_user_" + uniqueId;
+        
         Json::Value regBody;
-        regBody["username"] = "workflow_user_" + std::to_string(time(nullptr));
+        regBody["username"] = username;
         regBody["password"] = "securepass123";
         std::string regBodyStr = Json::FastWriter().write(regBody);
 
@@ -352,7 +356,7 @@ TEST_F(AuthHandlerTest, RegisterAndLoginWorkflow) {
         EXPECT_EQ(regRes.status, 201);
 
         Json::Value loginBody;
-        loginBody["username"] = "workflow_user_" + std::to_string(time(nullptr));
+        loginBody["username"] = username;
         loginBody["password"] = "securepass123";
         std::string loginBodyStr = Json::FastWriter().write(loginBody);
 

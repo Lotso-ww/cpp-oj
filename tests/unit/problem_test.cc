@@ -7,6 +7,7 @@
 #include "connection_pool.h"
 #include "config.h"
 #include "logger.h"
+#include "password.h"
 
 using namespace LogModule;
 
@@ -284,10 +285,13 @@ TEST_F(UserModelTest, GettersAndSetters) {
 }
 
 TEST_F(UserModelTest, ValidatePassword) {
-    oj::User u;
-    u.setPassword("plaintext123");
+    std::string originalPassword = "plaintext123";
+    std::string hashedPassword = oj::PasswordUtil::hashPassword(originalPassword);
 
-    EXPECT_TRUE(u.validatePassword("plaintext123"));
+    oj::User u;
+    u.setPassword(hashedPassword);
+
+    EXPECT_TRUE(u.validatePassword(originalPassword));
     EXPECT_FALSE(u.validatePassword("wrongpassword"));
     EXPECT_FALSE(u.validatePassword(""));
 }
