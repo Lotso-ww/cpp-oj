@@ -92,7 +92,7 @@ target_link_libraries(problem_handler_test /usr/lib/x86_64-linux-gnu/libgtest.a 
 add_test(NAME problem_handler_test COMMAND problem_handler_test)
 
 add_executable(problem_service_test ${TEST_SOURCES} src/service/problem_service.cc tests/unit/problem_service_test.cc)
-target_link_libraries(problem_service_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient)
+target_link_libraries(problem_service_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient jsoncpp)
 add_test(NAME problem_service_test COMMAND problem_service_test)
 
 add_executable(executor_test ${TEST_SOURCES} src/service/executor_service.cc tests/unit/executor_test.cc)
