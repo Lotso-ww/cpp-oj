@@ -219,10 +219,11 @@ mysql -u lotso oj_system
 - [✅️] 题目列表/详情 API（用户）
 
 ### Phase 3 - 代码执行模块
-- [] C++ 代码编译（fork + g++）
-- [] 代码运行 + 超时控制
-- [] 结果比较（stdout vs expected）
-- [] 进程级资源限制（CPU/内存）
+- [✅️] C++ 代码编译（fork + g++）
+- [✅️] 代码运行 + 超时控制
+- [✅️] 结果比较（stdout vs expected）
+- [✅️] 进程级资源限制（CPU/内存）
+- [✅️] SubmitHandler 接入 ExecutorService
 
 ### Phase 4 - 登录注册模块
 - [] Session/Cookie 认证机制
