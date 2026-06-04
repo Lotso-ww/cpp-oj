@@ -38,6 +38,9 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     
+    InitLogger();
+    ENABLE_CONSOLE_LOG_STRATEGY();
+    
     LOG(LogLevel::INFO) << "OJ Server starting...";
     LOG(LogLevel::INFO) << "Database: " << config.getDatabaseHost() << ":" << config.getDatabasePort();
     LOG(LogLevel::INFO) << "Server: " << config.getServerHost() << ":" << config.getServerPort();

@@ -28,16 +28,17 @@ bool Server::start() {
     auto port = config.getServerPort();
     auto host = config.getServerHost();
     
+    LOG(LogLevel::INFO) << "Initializing connection pool...";
     (void)ConnectionPool::getInstance();
+    LOG(LogLevel::INFO) << "Connection pool initialized";
     
-    InitLogger();
-    ENABLE_CONSOLE_LOG_STRATEGY();
-    
-    LOG(LogLevel::INFO) << "Starting server on " << host << ":" << port;
-    
+    LOG(LogLevel::INFO) << "Setting up routes...";
     Router::setupServer(pImpl->svr);
+    LOG(LogLevel::INFO) << "Routes setup complete";
     
     pImpl->running = true;
+    
+    LOG(LogLevel::INFO) << "Starting server on " << host << ":" << port;
     
     return pImpl->svr.listen(host, port);
 }

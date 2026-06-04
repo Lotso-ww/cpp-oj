@@ -122,3 +122,11 @@ add_test(NAME auth_handler_test COMMAND auth_handler_test)
 add_executable(password_test ${TEST_SOURCES} tests/unit/password_test.cc)
 target_link_libraries(password_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient crypt botan-2)
 add_test(NAME password_test COMMAND password_test)
+
+add_executable(create_admin tools/create_admin.cc
+    src/db/connection_pool.cc
+    src/utils/config.cc
+    src/utils/logger.cc
+    src/model/user.cc
+    src/utils/password.cc)
+target_link_libraries(create_admin yaml-cpp mysqlclient jsoncpp ssl crypto crypt botan-2 pthread)
