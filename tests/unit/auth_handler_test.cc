@@ -7,6 +7,7 @@
 #include "connection_pool.h"
 #include "config.h"
 #include "logger.h"
+#include "session_manager.h"
 #include "../src/utils/httplib.h"
 
 using namespace LogModule;
@@ -332,6 +333,158 @@ TEST_F(AuthHandlerTest, LogoutWithoutCookie) {
     EXPECT_EQ(res.status, 200);
     Json::Value json = parseJson(res.body);
     EXPECT_EQ(json["message"], "Logout successful");
+}
+
+TEST_F(AuthHandlerTest, LogoutDestroysSession) {
+    {
+        oj::User u;
+        u.setUsername(testUsername);
+        u.setPassword("password");
+        u.setRole("user");
+        u.save();
+    }
+
+    Json::Value loginBody;
+    loginBody["username"] = testUsername;
+    loginBody["password"] = "password";
+    std::string loginBodyStr = Json::FastWriter().write(loginBody);
+
+    httplib::Request loginReq;
+    loginReq.method = "POST";
+    loginReq.path = "/api/login";
+    loginReq.body = loginBodyStr;
+
+    httplib::Response loginRes;
+    oj::AuthHandler::login(loginReq, loginRes);
+
+    ASSERT_EQ(loginRes.status, 200);
+    std::string cookie = loginRes.get_header_value("Set-Cookie");
+    ASSERT_TRUE(cookie.find("oj_session=") != std::string::npos);
+
+    size_t start = cookie.find("oj_session=") + strlen("oj_session=");
+    size_t end = cookie.find(';', start);
+    std::string token = cookie.substr(start, end - start);
+
+    auto& sessionManager = oj::SessionManager::getInstance();
+    ASSERT_NE(sessionManager.getSession(token), nullptr);
+
+    httplib::Request logoutReq;
+    logoutReq.method = "POST";
+    logoutReq.path = "/api/logout";
+    logoutReq.set_header("Cookie", "oj_session=" + token);
+
+    httplib::Response logoutRes;
+    oj::AuthHandler::logout(logoutReq, logoutRes);
+
+    EXPECT_EQ(logoutRes.status, 200);
+    EXPECT_EQ(sessionManager.getSession(token), nullptr);
+}
+
+TEST_F(AuthHandlerTest, LogoutWithInvalidToken) {
+    auto& sessionManager = oj::SessionManager::getInstance();
+    ASSERT_EQ(sessionManager.getSession("invalid_token_xyz"), nullptr);
+
+    httplib::Request req;
+    req.method = "POST";
+    req.path = "/api/logout";
+    req.set_header("Cookie", "oj_session=invalid_token_xyz");
+
+    httplib::Response res;
+    oj::AuthHandler::logout(req, res);
+
+    EXPECT_EQ(res.status, 200);
+    Json::Value json = parseJson(res.body);
+    EXPECT_EQ(json["message"], "Logout successful");
+}
+
+TEST_F(AuthHandlerTest, LogoutWithOtherCookiesPresent) {
+    httplib::Request req;
+    req.method = "POST";
+    req.path = "/api/logout";
+    req.set_header("Cookie", "other_cookie=value; oj_session=test_token_456; another_cookie=foo");
+
+    httplib::Response res;
+    oj::AuthHandler::logout(req, res);
+
+    EXPECT_EQ(res.status, 200);
+    EXPECT_TRUE(res.has_header("Set-Cookie"));
+}
+
+TEST_F(AuthHandlerTest, LogoutTwice) {
+    {
+        oj::User u;
+        u.setUsername("logout_double_test_user");
+        u.setPassword("password");
+        u.setRole("user");
+        u.save();
+    }
+
+    Json::Value loginBody;
+    loginBody["username"] = "logout_double_test_user";
+    loginBody["password"] = "password";
+    std::string loginBodyStr = Json::FastWriter().write(loginBody);
+
+    httplib::Request loginReq;
+    loginReq.method = "POST";
+    loginReq.path = "/api/login";
+    loginReq.body = loginBodyStr;
+
+    httplib::Response loginRes;
+    oj::AuthHandler::login(loginReq, loginRes);
+
+    ASSERT_EQ(loginRes.status, 200);
+    std::string cookie = loginRes.get_header_value("Set-Cookie");
+    size_t start = cookie.find("oj_session=") + strlen("oj_session=");
+    size_t end = cookie.find(';', start);
+    std::string token = cookie.substr(start, end - start);
+
+    auto& sessionManager = oj::SessionManager::getInstance();
+    ASSERT_NE(sessionManager.getSession(token), nullptr);
+
+    httplib::Request logoutReq1;
+    logoutReq1.method = "POST";
+    logoutReq1.path = "/api/logout";
+    logoutReq1.set_header("Cookie", "oj_session=" + token);
+
+    httplib::Response logoutRes1;
+    oj::AuthHandler::logout(logoutReq1, logoutRes1);
+
+    EXPECT_EQ(logoutRes1.status, 200);
+    EXPECT_EQ(sessionManager.getSession(token), nullptr);
+
+    httplib::Request logoutReq2;
+    logoutReq2.method = "POST";
+    logoutReq2.path = "/api/logout";
+    logoutReq2.set_header("Cookie", "oj_session=" + token);
+
+    httplib::Response logoutRes2;
+    oj::AuthHandler::logout(logoutReq2, logoutRes2);
+
+    EXPECT_EQ(logoutRes2.status, 200);
+
+    auto* user = oj::User::findByUsername("logout_double_test_user");
+    if (user != nullptr) {
+        user->remove();
+        delete user;
+    }
+}
+
+TEST_F(AuthHandlerTest, LogoutSetsCorrectCookieAttributes) {
+    httplib::Request req;
+    req.method = "POST";
+    req.path = "/api/logout";
+    req.set_header("Cookie", "oj_session=test_token");
+
+    httplib::Response res;
+    oj::AuthHandler::logout(req, res);
+
+    EXPECT_EQ(res.status, 200);
+    std::string cookie = res.get_header_value("Set-Cookie");
+    EXPECT_TRUE(cookie.find("oj_session=") != std::string::npos);
+    EXPECT_TRUE(cookie.find("Max-Age=0") != std::string::npos);
+    EXPECT_TRUE(cookie.find("Path=/") != std::string::npos);
+    EXPECT_TRUE(cookie.find("HttpOnly") != std::string::npos);
+    EXPECT_TRUE(cookie.find("SameSite=Strict") != std::string::npos);
 }
 
 TEST_F(AuthHandlerTest, RegisterAndLoginWorkflow) {
