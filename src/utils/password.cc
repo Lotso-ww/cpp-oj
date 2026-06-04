@@ -1,28 +1,21 @@
 #include "password.h"
 #include "logger.h"
-#include <openssl/rand.h>
-#include <openssl/err.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <random>
-#include <sstream>
+#include <botan/bcrypt.h>
+#include <botan/rng.h>
+#include <botan/system_rng.h>
 #include <iomanip>
+#include <sstream>
 
 namespace {
 
 std::string generateRandomSalt() {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(0, 255);
-    
-    unsigned char salt[16];
-    for (int i = 0; i < 16; ++i) {
-        salt[i] = static_cast<unsigned char>(dis(gen));
-    }
-    
+    Botan::System_RNG rng;
+    std::vector<uint8_t> salt(16);
+    rng.randomize(salt.data(), salt.size());
+
     std::ostringstream oss;
-    for (int i = 0; i < 16; ++i) {
-        oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(salt[i]);
+    for (uint8_t b : salt) {
+        oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b);
     }
     return oss.str();
 }
@@ -36,31 +29,28 @@ std::string PasswordUtil::generateSalt() {
 }
 
 std::string PasswordUtil::hashPassword(const std::string& password) {
-    std::string salt = generateSalt();
-    std::string saltPrefix = "$2y$10$" + salt;
-    
-    char* result = crypt(password.c_str(), saltPrefix.c_str());
-    
-    if (result == nullptr) {
-        LogModule::logger.getInstance()(LogModule::LogLevel::ERROR, __FILE__, __LINE__) << "crypt() failed for password hashing";
+    try {
+        Botan::System_RNG rng;
+        return Botan::generate_bcrypt(password, rng, 10);
+    } catch (const std::exception& e) {
+        LogModule::logger.getInstance()(LogModule::LogLevel::ERROR, __FILE__, __LINE__)
+            << "Botan bcrypt hash failed: " << e.what();
         return "";
     }
-    
-    return std::string(result);
 }
 
 bool PasswordUtil::verifyPassword(const std::string& password, const std::string& hashed) {
     if (hashed.empty() || password.empty()) {
         return false;
     }
-    
-    char* result = crypt(password.c_str(), hashed.c_str());
-    if (result == nullptr) {
-        LogModule::logger.getInstance()(LogModule::LogLevel::ERROR, __FILE__, __LINE__) << "crypt() failed for password verification";
+
+    try {
+        return Botan::check_bcrypt(password, hashed);
+    } catch (const std::exception& e) {
+        LogModule::logger.getInstance()(LogModule::LogLevel::ERROR, __FILE__, __LINE__)
+            << "Botan bcrypt verify failed: " << e.what();
         return false;
     }
-    
-    return std::string(result) == hashed;
 }
 
 }

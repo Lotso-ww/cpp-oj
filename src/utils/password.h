@@ -1,6 +1,9 @@
 #pragma once
 
 #include <string>
+#include <botan/bcrypt.h>
+#include <botan/rng.h>
+#include <botan/system_rng.h>
 
 namespace oj {
 
