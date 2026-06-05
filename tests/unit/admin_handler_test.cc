@@ -11,6 +11,8 @@
 #include "connection_pool.h"
 #include "config.h"
 #include "logger.h"
+#include "auth_service.h"
+#include "session_manager.h"
 #include "../src/utils/httplib.h"
 
 using namespace LogModule;
@@ -51,12 +53,30 @@ logging:
         std::ofstream(configFile) << configContent;
         oj::Config::getInstance().load(configFile.string());
         LogModule::ENABLE_CONSOLE_LOG_STRATEGY();
+
+        adminUser = new oj::User();
+        adminUser->setUsername("test_admin_" + std::to_string(time(nullptr)));
+        adminUser->setPassword("testpass123");
+        adminUser->setRole("admin");
+        int userId = adminUser->save();
+        adminUser->setId(userId);
+
+        sessionToken = oj::AuthService::getSessionToken(userId, adminUser->getUsername(), adminUser->getRole());
     }
 
     void TearDown() override {
+        if (!sessionToken.empty()) {
+            oj::SessionManager::getInstance().destroySession(sessionToken);
+        }
+        if (adminUser && adminUser->getId() > 0) {
+            adminUser->remove();
+        }
+        delete adminUser;
         std::filesystem::remove_all(tempDir);
     }
 
+    std::string sessionToken;
+    oj::User* adminUser = nullptr;
     std::filesystem::path tempDir;
     std::filesystem::path configFile;
 
@@ -66,6 +86,7 @@ logging:
         req.method = method;
         req.path = path;
         req.body = body;
+        req.set_header("Cookie", "oj_session=" + sessionToken);
         return req;
     }
 
