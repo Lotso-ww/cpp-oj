@@ -232,8 +232,8 @@ mysql -u lotso oj_system
 - [✅️] 用户退出登录
 
 ### Phase 5 - 前端
-- [] 登录页面 (`/login.html`)
-- [] 注册页面 (`/register.html`)
+- [✅️] 登录页面 (`/login.html`)
+- [✅️] 注册页面 (`/register.html`)
 - [] 题目列表页面
 - [] 题目详情页面（描述 + 在线编辑器）
 - [] 提交结果展示

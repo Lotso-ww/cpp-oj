@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#FAFAF7" />
+  <meta name="description" content="登录 CPP·OJ — 为 C++ 学习者打造的在线评测系统。" />
+  <title>登录 · CPP·OJ</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Fraunces:opsz,wght@9..144,300;9..144,400&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <main class="page" role="main">
+
+    <header class="page__header">
+      <a href="/index.html" class="wordmark" aria-label="CPP OJ — 首页">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 19h8" />
+          <path d="m4 17 6-6-6-6" />
+          <path d="m12 11 6 6" />
+        </svg>
+        <span>CPP&nbsp;·&nbsp;OJ</span>
+      </a>
+    </header>
+
+    <section class="page__main">
+      <div class="auth-shell">
+
+        <div class="auth-shell__header">
+          <span class="auth-shell__eyebrow">
+            <span class="dot" aria-hidden="true"></span>
+            <span>会话 · 登录</span>
+          </span>
+          <h1 class="auth-shell__heading">欢迎<em>回来</em></h1>
+          <p class="auth-shell__subhead">登录后继续你的练习，从上次离开的地方开始。</p>
+        </div>
+
+        <form class="auth-shell__form" id="loginForm" novalidate aria-describedby="loginAlert">
+
+          <div class="alert" id="loginAlert" role="alert" aria-live="polite">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span class="alert__message"></span>
+          </div>
+
+          <div class="field">
+            <input
+              type="text"
+              id="username"
+              name="username"
+              class="field__input"
+              autocomplete="username"
+              autocapitalize="off"
+              spellcheck="false"
+              required
+              aria-describedby="username-error"
+            />
+            <label for="username" class="field__label">用户名</label>
+            <svg class="field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 21v-1a7 7 0 0 1 7-7h2a7 7 0 0 1 7 7v1" />
+            </svg>
+            <p class="field__error" id="username-error"></p>
+          </div>
+
+          <div class="field">
+            <input
+              type="password"
+              id="password"
+              name="password"
+              class="field__input"
+              autocomplete="current-password"
+              required
+              aria-describedby="password-error"
+            />
+            <label for="password" class="field__label">密码</label>
+            <button
+              type="button"
+              class="field__icon field__icon--clickable"
+              data-toggle="password"
+              aria-label="显示密码"
+              aria-pressed="false"
+              tabindex="0"
+            >
+              <svg data-icon="eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block">
+                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <svg data-icon="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none">
+                <path d="M9.88 5.09A10.94 10.94 0 0 1 12 5c6.5 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3.5 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                <line x1="2" y1="2" x2="22" y2="22" />
+                <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+              </svg>
+            </button>
+            <p class="field__error" id="password-error"></p>
+          </div>
+
+          <div class="auth-shell__actions">
+            <button type="submit" class="btn btn--primary" id="loginSubmit">
+              <span class="btn__label">
+                <span>登录</span>
+                <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="14" height="14" stroke-width="2">
+                  <path d="M5 12h14" />
+                  <path d="m12 5 7 7-7 7" />
+                </svg>
+              </span>
+              <span class="btn__loader" aria-hidden="true">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              </span>
+            </button>
+
+            <p class="auth-shell__alt">
+              还没有账号？
+              <a href="/register.html">
+                <span>创建一个</span>
+                <span class="arrow">→</span>
+              </a>
+            </p>
+          </div>
+
+        </form>
+
+      </div>
+    </section>
+
+    <footer class="page__footer">
+      <p class="caption">
+        精心打造
+        <span class="sep">·</span>
+        v1.0.0
+        <span class="sep">·</span>
+        <span id="year">2026</span>
+      </p>
+    </footer>
+
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    (function () {
+      'use strict';
+
+      // Year stamp
+      var yearEl = document.getElementById('year');
+      if (yearEl) yearEl.textContent = new Date().getFullYear();
+
+      AuthForms.wireForm(document.getElementById('loginForm'), {
+        validate: function (input, values) {
+          if (input.name === 'username') return AuthForms.validateUsername(values.username);
+          if (input.name === 'password') return AuthForms.validatePassword(values.password, { minLength: 1 });
+          return '';
+        },
+        onSubmit: function (values, helpers) {
+          Api.login(values.username.trim(), values.password).then(function (res) {
+            if (res.ok) {
+              helpers.showAlert('欢迎回来，正在跳转…');
+              setTimeout(function () {
+                window.location.href = '/problem_list.html';
+              }, 600);
+            } else {
+              helpers.showAlert(AuthForms.translateError(res.data && res.data.error));
+            }
+          });
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
