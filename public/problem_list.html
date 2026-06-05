@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#FAFAF7" />
+  <meta name="description" content="浏览所有题目，按难度递进练习。CPP·OJ — 为 C++ 学习者打造的在线评测系统。" />
+  <title>题目 · CPP·OJ</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Fraunces:opsz,wght@9..144,300;9..144,400&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <main class="page" role="main">
+
+    <header class="topbar">
+      <div class="topbar__inner">
+        <a href="/index.html" class="wordmark" aria-label="CPP OJ — 首页">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 19h8" />
+            <path d="m4 17 6-6-6-6" />
+            <path d="m12 11 6 6" />
+          </svg>
+          <span>CPP&nbsp;·&nbsp;OJ</span>
+        </a>
+
+        <nav class="nav" aria-label="主导航">
+          <a href="/problem_list.html" class="nav__item is-active" aria-current="page">题目</a>
+          <a href="#" class="nav__item" aria-disabled="true">排行</a>
+          <a href="#" class="nav__item" aria-disabled="true">讨论</a>
+        </nav>
+
+        <div class="user-menu" id="userMenu">
+          <!-- Filled by JS based on sessionStorage.oj_username -->
+        </div>
+      </div>
+    </header>
+
+    <div class="container">
+
+      <header class="page-header">
+        <span class="page-header__eyebrow">
+          <span class="dot" aria-hidden="true"></span>
+          <span>题库 · 列表</span>
+        </span>
+        <h1 class="page-header__heading">题目</h1>
+        <p class="page-header__subhead">按难度递进，从易到难。</p>
+      </header>
+
+      <section class="filter-bar" aria-label="筛选与搜索">
+        <div class="filter" role="tablist" aria-label="按难度筛选">
+          <button class="filter__chip is-active" type="button" data-difficulty="all" role="tab" aria-selected="true">
+            <span>全部</span>
+            <span class="filter__chip-count" data-count="all">—</span>
+          </button>
+          <button class="filter__chip" type="button" data-difficulty="Easy" role="tab" aria-selected="false">
+            <span>简单</span>
+            <span class="filter__chip-count" data-count="Easy">—</span>
+          </button>
+          <button class="filter__chip" type="button" data-difficulty="Medium" role="tab" aria-selected="false">
+            <span>中等</span>
+            <span class="filter__chip-count" data-count="Medium">—</span>
+          </button>
+          <button class="filter__chip" type="button" data-difficulty="Hard" role="tab" aria-selected="false">
+            <span>困难</span>
+            <span class="filter__chip-count" data-count="Hard">—</span>
+          </button>
+        </div>
+
+        <div class="search">
+          <svg class="search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="search"
+            class="search__input"
+            id="searchInput"
+            placeholder="按题号或标题搜索"
+            autocomplete="off"
+            spellcheck="false"
+            aria-label="按题号或标题搜索"
+          />
+        </div>
+      </section>
+
+      <section class="problem-table-wrapper" id="tableWrapper" aria-busy="true" aria-live="polite">
+        <!-- Filled by JS: loading skeleton, error, or table -->
+      </section>
+
+    </div>
+
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/problem.js"></script>
+</body>
+</html>

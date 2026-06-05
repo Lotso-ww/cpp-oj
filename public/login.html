@@ -158,6 +158,30 @@
       var yearEl = document.getElementById('year');
       if (yearEl) yearEl.textContent = new Date().getFullYear();
 
+      // Validate return= param (must be same-origin path, not open-redirect)
+      function safeReturn() {
+        try {
+          var p = new URLSearchParams(window.location.search).get('return');
+          if (!p) return '/problem_list.html';
+          if (p.charAt(0) !== '/') return '/problem_list.html';
+          if (p.indexOf('//') === 0) return '/problem_list.html';
+          return p;
+        } catch (_) { return '/problem_list.html'; }
+      }
+
+      // If the user is already logged in (valid session cookie), skip the
+      // form entirely and redirect to the return URL. Avoids the case where
+      // a user lands on /login.html by mistake and has to re-enter credentials
+      // even though their session is still valid.
+      if (typeof Api !== 'undefined' && Api.me) {
+        Api.me().then(function (res) {
+          if (res.ok && res.data && res.data.username) {
+            try { sessionStorage.setItem('oj_username', res.data.username); } catch (_) {}
+            window.location.replace(safeReturn());
+          }
+        });
+      }
+
       AuthForms.wireForm(document.getElementById('loginForm'), {
         validate: function (input, values) {
           if (input.name === 'username') return AuthForms.validateUsername(values.username);
@@ -167,9 +191,10 @@
         onSubmit: function (values, helpers) {
           Api.login(values.username.trim(), values.password).then(function (res) {
             if (res.ok) {
+              try { sessionStorage.setItem('oj_username', values.username.trim()); } catch (_) {}
               helpers.showAlert('欢迎回来，正在跳转…');
               setTimeout(function () {
-                window.location.href = '/problem_list.html';
+                window.location.href = safeReturn();
               }, 600);
             } else {
               helpers.showAlert(AuthForms.translateError(res.data && res.data.error));

@@ -57,6 +57,18 @@
     },
     logout() {
       return request('POST', '/api/logout');
+    },
+    me() {
+      return request('GET', '/api/me');
+    },
+    listProblems() {
+      return request('GET', '/api/problems');
+    },
+    getProblem(id) {
+      return request('GET', '/api/problems/' + encodeURIComponent(id));
+    },
+    submitCode(problemId, code) {
+      return request('POST', '/api/submit', { problemId, code });
     }
   };
 

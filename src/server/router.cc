@@ -40,6 +40,10 @@ void setupRoutes(httplib::Server& svr) {
         AuthHandler::registerUser(req, res);
     });
 
+    svr.Get("/api/me", [](const httplib::Request& req, httplib::Response& res) {
+        AuthHandler::me(req, res);
+    });
+
     svr.set_mount_point("/", "./public");
 
     svr.set_error_handler([](const httplib::Request& req, httplib::Response& res) {

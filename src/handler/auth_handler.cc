@@ -93,4 +93,38 @@ void AuthHandler::registerUser(const httplib::Request& req, httplib::Response& r
     res.set_content(R"({"message":"User registered successfully"})", "application/json");
 }
 
+void AuthHandler::me(const httplib::Request& req, httplib::Response& res) {
+    // Extract session token from cookie
+    const auto& cookie = req.get_header_value("Cookie");
+
+    std::string token;
+    size_t pos = cookie.find(SESSION_COOKIE_NAME);
+    if (pos != std::string::npos) {
+        size_t start = pos + strlen(SESSION_COOKIE_NAME) + 1;
+        size_t end = cookie.find(';', start);
+        token = cookie.substr(start, end - start);
+    }
+
+    if (token.empty()) {
+        res.status = 401;
+        res.set_content(R"({"error":"Unauthorized"})", "application/json");
+        return;
+    }
+
+    int userId = 0;
+    std::string username, role;
+    if (!AuthService::validateSession(token, userId, username, role)) {
+        res.status = 401;
+        res.set_content(R"({"error":"Unauthorized"})", "application/json");
+        return;
+    }
+
+    Json::Value result;
+    result["username"] = username;
+    result["role"] = role;
+    result["userId"] = userId;
+    res.status = 200;
+    res.set_content(Json::FastWriter().write(result), "application/json");
+}
+
 }
