@@ -1,0 +1,6 @@
+requests
+pytest
+pytest-html
+pytest-xdist
+pytest-timeout
+pytest-rerunfailures
