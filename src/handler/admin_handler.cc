@@ -2,6 +2,7 @@
 #include "../model/problem.h"
 #include "../model/test_case.h"
 #include "../db/connection_pool.h"
+#include "../service/auth_service.h"
 #include "../utils/logger.h"
 #include <json/json.h>
 #include <sstream>
@@ -10,7 +11,52 @@ using namespace LogModule;
 
 namespace oj {
 
+static const char* SESSION_COOKIE_NAME = "oj_session";
+
+static bool checkAdminAuth(const httplib::Request& req, httplib::Response& res) {
+    const auto& cookie = req.get_header_value("Cookie");
+    std::string token;
+    size_t pos = cookie.find(SESSION_COOKIE_NAME);
+    if (pos != std::string::npos) {
+        size_t start = pos + strlen(SESSION_COOKIE_NAME) + 1;
+        size_t end = cookie.find(';', start);
+        token = cookie.substr(start, end - start);
+    }
+
+    if (token.empty()) {
+        res.status = 401;
+        Json::Value error;
+        error["error"] = "Unauthorized";
+        res.set_content(Json::FastWriter().write(error), "application/json");
+        return false;
+    }
+
+    int userId = 0;
+    std::string username, role;
+    if (!AuthService::validateSession(token, userId, username, role)) {
+        res.status = 401;
+        Json::Value error;
+        error["error"] = "Unauthorized";
+        res.set_content(Json::FastWriter().write(error), "application/json");
+        return false;
+    }
+
+    if (role != "admin") {
+        res.status = 403;
+        Json::Value error;
+        error["error"] = "Forbidden";
+        res.set_content(Json::FastWriter().write(error), "application/json");
+        return false;
+    }
+
+    return true;
+}
+
 void AdminHandler::createProblem(const httplib::Request& req, httplib::Response& res) {
+    if (!checkAdminAuth(req, res)) {
+        return;
+    }
+
     Json::Value root;
     Json::CharReaderBuilder builder;
     std::istringstream iss(req.body);
@@ -90,6 +136,10 @@ void AdminHandler::createProblem(const httplib::Request& req, httplib::Response&
 }
 
 void AdminHandler::deleteProblem(const httplib::Request& req, httplib::Response& res) {
+    if (!checkAdminAuth(req, res)) {
+        return;
+    }
+
     auto it = req.path_params.find("id");
     if (it == req.path_params.end()) {
         res.status = 400;

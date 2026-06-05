@@ -91,8 +91,8 @@ add_executable(model_test ${TEST_SOURCES} tests/unit/problem_test.cc)
 target_link_libraries(model_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient crypt botan-2)
 add_test(NAME model_test COMMAND model_test)
 
-add_executable(admin_handler_test ${TEST_SOURCES} src/handler/admin_handler.cc tests/unit/admin_handler_test.cc)
-target_link_libraries(admin_handler_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient jsoncpp crypt botan-2)
+add_executable(admin_handler_test ${TEST_SOURCES} src/handler/admin_handler.cc src/service/auth_service.cc src/service/session.cc src/service/session_manager.cc src/model/user.cc tests/unit/admin_handler_test.cc)
+target_link_libraries(admin_handler_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient jsoncpp ssl crypto crypt botan-2)
 add_test(NAME admin_handler_test COMMAND admin_handler_test)
 
 add_executable(problem_handler_test ${TEST_SOURCES} src/handler/problem_handler.cc src/service/problem_service.cc tests/unit/problem_handler_test.cc)
