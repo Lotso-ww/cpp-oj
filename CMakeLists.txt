@@ -38,6 +38,7 @@ set(SOURCES
     src/handler/submit_handler.cc
     src/handler/auth_handler.cc
     src/handler/admin_handler.cc
+    src/handler/run_handler.cc
     src/service/problem_service.cc
     src/service/executor_service.cc
     src/service/auth_service.cc

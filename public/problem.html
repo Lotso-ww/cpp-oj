@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
 
   <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Fraunces:opsz,wght@9..144,300;9..144,400&family=JetBrains+Mono:wght@400;500&display=swap"
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+SC:wght@400;500&family=Inter:wght@300;400;500;600&family=Fraunces:opsz,wght@9..144,300;9..144,400&family=JetBrains+Mono:wght@400;500&display=swap"
     rel="stylesheet"
   />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css" />
@@ -81,6 +81,12 @@
 
           <div class="editor-actions">
             <button class="btn btn--ghost" id="resetBtn" type="button">重置</button>
+            <button class="btn btn--ghost" id="runTestBtn" type="button">
+              <span class="btn__label">运行测试</span>
+              <span class="btn__loader" aria-hidden="true">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              </span>
+            </button>
             <button class="btn btn--primary" id="submitBtn" type="button">
               <span class="btn__label">
                 <span>提交</span>
@@ -99,6 +105,18 @@
             登录后即可提交代码。
             <a href="/login.html" id="authHintLink">登录</a>
           </p>
+
+          <section class="test-case-editor" aria-label="测试用例">
+            <header class="test-case-editor__head">
+              <h3 class="test-case-editor__title">测试用例</h3>
+              <button class="btn btn--ghost btn--small" id="addTestCaseBtn" type="button">
+                <span>+ 添加用例</span>
+              </button>
+            </header>
+            <div class="test-case-editor__list" id="testCaseList">
+              <!-- Test cases rendered here by renderTestCases() -->
+            </div>
+          </section>
 
           <div id="resultArea" aria-live="polite"></div>
 

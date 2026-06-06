@@ -1724,8 +1724,295 @@ img, svg {
   animation: btn-dot 1.2s infinite var(--ease-out);
 }
 
-.result-card__spinner span:nth-child(2) { animation-delay: 0.15s; }
-.result-card__spinner span:nth-child(3) { animation-delay: 0.3s; }
+  .result-card__spinner span:nth-child(2) { animation-delay: 0.15s; }
+  .result-card__spinner span:nth-child(3) { animation-delay: 0.3s; }
+
+
+/* --------------------------------------------------------------------------
+   33b. Per-case Test Results (LeetCode-style "Run Code" output)
+   -------------------------------------------------------------------------- */
+.test-cases {
+  border-top: 1px solid var(--hairline);
+}
+
+.test-case {
+  padding: 14px 24px 16px;
+  border-bottom: 1px solid var(--hairline);
+  animation: page-enter 280ms var(--ease-out-soft) both;
+}
+
+.test-case:last-child {
+  border-bottom: 0;
+}
+
+.test-case__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.test-case__num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  letter-spacing: 0.06em;
+  min-width: 24px;
+}
+
+.test-case__status {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+}
+
+.test-case--ac .test-case__status {
+  background: rgba(21, 128, 61, 0.08);
+  color: var(--success);
+  border-color: rgba(21, 128, 61, 0.2);
+}
+
+.test-case--wa .test-case__status,
+.test-case--tle .test-case__status,
+.test-case--re .test-case__status,
+.test-case--mle .test-case__status {
+  background: rgba(185, 28, 28, 0.06);
+  color: var(--error);
+  border-color: rgba(185, 28, 28, 0.2);
+}
+
+.test-case--ce .test-case__status,
+.test-case--system_error .test-case__status {
+  background: rgba(185, 28, 28, 0.06);
+  color: var(--error);
+  border-color: rgba(185, 28, 28, 0.2);
+}
+
+.test-case__time {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-soft);
+  letter-spacing: 0.04em;
+  margin-left: auto;
+}
+
+.test-case__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.test-case__row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  font-size: 12px;
+}
+
+.test-case__label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  min-width: 36px;
+  flex-shrink: 0;
+  padding-top: 4px;
+}
+
+.test-case__value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink);
+  background: var(--paper);
+  padding: 4px 10px;
+  border-radius: 3px;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  flex: 1;
+  min-width: 0;
+}
+
+.test-case--ac .test-case__value { /* leave default */ }
+
+  .test-case--wa .test-case__value {
+  /* Highlight the "实际" (actual) row when case fails */
+}
+
+.test-case--wa .test-case__row:nth-child(3) .test-case__value {
+  background: rgba(185, 28, 28, 0.04);
+  border: 1px solid rgba(185, 28, 28, 0.12);
+}
+
+
+/* --------------------------------------------------------------------------
+   33c. Test Case Editor (user-editable test cases for 运行测试)
+   -------------------------------------------------------------------------- */
+.test-case-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.test-case-editor__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.test-case-editor__title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  letter-spacing: -0.003em;
+  text-transform: none;
+}
+
+.test-case-editor__empty {
+  margin: 0;
+  padding: 24px;
+  font-size: 13px;
+  color: var(--ink-muted);
+  text-align: center;
+  border: 1px dashed var(--hairline);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+
+.test-case-editor__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.test-case-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: var(--surface);
+  transition: border-color 180ms var(--ease-out);
+}
+
+.test-case-row:focus-within {
+  border-color: var(--ink-soft);
+}
+
+.test-case-row__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.test-case-row__num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  flex: 1;
+}
+
+.test-case-row__remove {
+  background: transparent;
+  border: 0;
+  padding: 2px 8px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--ink-soft);
+  letter-spacing: -0.003em;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: color 150ms var(--ease-out), background-color 150ms var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.test-case-row__remove:hover {
+  color: var(--error);
+  background: rgba(185, 28, 28, 0.05);
+}
+
+.test-case-row__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.test-case-row__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.test-case-row__label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.test-case-row__textarea {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  padding: 6px 10px;
+  outline: none;
+  resize: vertical;
+  min-height: 32px;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 150ms var(--ease-out);
+  font-feature-settings: normal;
+}
+
+.test-case-row__textarea:hover {
+  border-color: var(--ink-soft);
+}
+
+.test-case-row__textarea:focus {
+  border-color: var(--ink);
+  background: var(--surface);
+}
+
+.test-case-row__textarea::placeholder {
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+/* Small button variant for inline actions (e.g. "+ 添加用例") */
+.btn--small {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  min-width: 0;
+  width: auto;
+}
+
+@media (max-width: 640px) {
+  .test-case-editor__head {
+    flex-wrap: wrap;
+  }
+}
 
 
 /* --------------------------------------------------------------------------

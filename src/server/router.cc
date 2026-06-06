@@ -3,6 +3,7 @@
 #include "../handler/problem_handler.h"
 #include "../handler/auth_handler.h"
 #include "../handler/submit_handler.h"
+#include "../handler/run_handler.h"
 #include "../utils/httplib.h"
 
 namespace oj {
@@ -26,6 +27,10 @@ void setupRoutes(httplib::Server& svr) {
 
     svr.Post("/api/submit", [](const httplib::Request& req, httplib::Response& res) {
         SubmitHandler::submitCode(req, res);
+    });
+
+    svr.Post("/api/run", [](const httplib::Request& req, httplib::Response& res) {
+        RunHandler::runCode(req, res);
     });
 
     svr.Post("/api/login", [](const httplib::Request& req, httplib::Response& res) {

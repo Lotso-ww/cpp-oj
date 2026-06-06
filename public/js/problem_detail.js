@@ -31,7 +31,12 @@
     authKnown: false,   // becomes true after /api/me (or logout) responds
     editor:    null,
     initialCode: '',
-    submitting: false
+    submitting: false,
+    // User-editable test cases for "运行测试" (LeetCode-style).
+    // Initially populated from the problem's DB test cases; the user can
+    // freely add / edit / remove via the editor. "提交" still uses the
+    // DB test cases (it's the official submission, judged against all).
+    customTestCases: []
   };
 
   /* ---------- Defaults ---------- */
@@ -96,16 +101,18 @@
         '.ace-cpp-oj {',
         '  background-color: #FFFFFF;',
         '  color: #0A0A0A;',
-        '  /* JetBrains Mono first for clean Latin (1em/char, cursor hugs the',
-        '     character). CJK falls back to LXGW WenKai — typing Chinese will',
-        '     have slight cursor drift since the two fonts have different metrics,',
-        '     but Latin code looks like proper code. */',
-        '  font-family: "JetBrains Mono", "LXGW WenKai", ui-monospace, SFMono-Regular, Menlo, monospace;',
-        '  line-height: 1.65;',
+        '  /* JetBrains Mono for Latin (1em/char, clean monospace).',
+        '     For CJK we fall back to the OS system font (PingFang SC on macOS,',
+        '     Microsoft YaHei on Windows, Noto Sans CJK SC on Linux). These are',
+        '     all designed for body text with CJK at exactly 1em full-width,',
+        '     which matches JetBrains Mono Latin 1em — so the cell width is',
+        '     consistent and the cursor lands at the right boundary. */',
+        '  font-family: "JetBrains Mono", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "WenQuanYi Micro Hei", sans-serif;',
+        '  line-height: 1.7;',
         '}',
         '.ace-cpp-oj .ace_scroller {',
-        '  font-family: "JetBrains Mono", "LXGW WenKai", ui-monospace, SFMono-Regular, Menlo, monospace;',
-        '  font-size: 13px;',
+        '  font-family: "JetBrains Mono", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "WenQuanYi Micro Hei", sans-serif;',
+        '  font-size: 14px;',
         '}',
         '.ace-cpp-oj .ace_cursor {',
         '  /* 1px hairline — thin and unobtrusive, hugs the character boundary */',
@@ -187,6 +194,25 @@
 
   /* ---------- Editor ---------- */
 
+  // Wait for all document fonts to be ready before initializing ace.
+  // Without this, ace measures char widths with whatever font is currently
+  // loaded (often a system fallback), and when the real font arrives later,
+  // the cursor positions don't match the rendered character → cursor drift.
+  async function waitForFonts() {
+    if (!document.fonts || !document.fonts.ready) return;
+    try {
+      // Explicitly request the fonts we care about. This both ensures they're
+      // loaded and (in modern browsers) the CSS @font-face is processed.
+      await Promise.all([
+        document.fonts.load("14px 'JetBrains Mono'"),
+        document.fonts.load("14px 'IBM Plex Sans SC'"),
+        document.fonts.ready
+      ]);
+    } catch (_) {
+      // If anything fails, just proceed — the editor will use whatever loaded
+    }
+  }
+
   // Find the "// 在这里编写你的 C++ 代码" line in the default template and
   // select it (so typing replaces it). Skips leading spaces so indentation
   // is preserved.
@@ -213,7 +239,7 @@
     editorInstance.renderer.scrollCursorIntoView();
   }
 
-  function initEditor() {
+  async function initEditor() {
     const editorEl = $('#editor');
     if (!editorEl) return;
 
@@ -233,12 +259,18 @@
       return;
     }
 
+    // CRITICAL: wait for fonts BEFORE defining the theme + creating the editor.
+    // If we don't, ace measures char widths with whatever font is loaded at
+    // that moment (usually a system fallback), and when the real font arrives
+    // later, the cursor positions don't match the rendered character → drift.
+    await waitForFonts();
+
     defineAceTheme();
 
     const editor = ace.edit(editorEl, {
       mode:             'ace/mode/c_cpp',
       theme:            'ace/theme/cpp-oj',
-      fontSize:         '13px',
+      fontSize:         '14px',
       tabSize:          4,
       useSoftTabs:      true,
       showPrintMargin:  false,
@@ -246,7 +278,7 @@
       showGutter:       true,
       highlightActiveLine: true,
       wrap:             false,
-      cursorWidth:      1,     // 1px hairline, no thick block
+      cursorWidth:      1,
       readOnly:         false
     });
 
@@ -267,22 +299,15 @@
     state.initialCode = DEFAULT_CPP;
 
     // Restore previously-saved code from sessionStorage (survives the
-    // login redirect roundtrip — when user writes code, clicks submit,
-    // gets bounced to /login.html, then comes back, their code is still here).
-    // Scoped per-problem so navigating between problems doesn't leak.
+    // login redirect roundtrip). Scoped per-problem.
     const codeKey = 'oj_editor_code_' + (state.problemId || 'unknown');
     const saved = (() => { try { return sessionStorage.getItem(codeKey); } catch (_) { return null; } })();
     const isNewCode = !saved;
     editor.setValue(saved || state.initialCode, -1);
 
     if (isNewCode) {
-      // For new code, select the comment line in main() so the user can
-      // immediately type to replace it. This puts the cursor inside the
-      // function — never at the start of the file (so typing into
-      // #include <> is impossible by accident).
       placeCursorOnComment(editor, state.initialCode);
     } else {
-      // For restored code, cursor at the end (where the user was writing)
       editor.navigateToEnd();
     }
 
@@ -302,6 +327,7 @@
       resizeTimer = setTimeout(() => editor.resize(), 100);
     });
   }
+
 
   /* ---------- Auth state & UI ---------- */
 
@@ -334,6 +360,91 @@
     // (avoids a brief flash for users who are already logged in but
     // happen to have empty sessionStorage in this tab)
     hint.hidden = state.isAuthed || !state.authKnown;
+  }
+
+  /* ---------- Test case editor (LeetCode-style "Run Code" inputs) ---------- */
+
+  // Render the test case editor from state.customTestCases. Each row has
+  // a case number, a delete button, and editable input/expected textareas.
+  function renderTestCases() {
+    const list = $('#testCaseList');
+    if (!list) return;
+
+    const cases = state.customTestCases;
+    if (cases.length === 0) {
+      list.innerHTML = '<p class="test-case-editor__empty">还没有测试用例。点击「+ 添加用例」创建，或从左边题目内容里复制示例输入。</p>';
+      return;
+    }
+
+    let html = '';
+    cases.forEach((c, i) => {
+      html += `<div class="test-case-row" data-index="${i}">`;
+      html += '<div class="test-case-row__head">';
+      html += `<span class="test-case-row__num">用例 #${i + 1}</span>`;
+      html += '<button class="test-case-row__remove" type="button" data-action="remove" aria-label="删除此用例">删除</button>';
+      html += '</div>';
+      html += '<div class="test-case-row__fields">';
+      html += '<label class="test-case-row__field">';
+      html += '<span class="test-case-row__label">输入</span>';
+      html += `<textarea class="test-case-row__textarea" data-field="input" rows="2" placeholder="stdin 输入">${escapeHtml(c.input || '')}</textarea>`;
+      html += '</label>';
+      html += '<label class="test-case-row__field">';
+      html += '<span class="test-case-row__label">预期输出</span>';
+      html += `<textarea class="test-case-row__textarea" data-field="expected" rows="2" placeholder="stdout 预期">${escapeHtml(c.expected || '')}</textarea>`;
+      html += '</label>';
+      html += '</div>';
+      html += '</div>';
+    });
+    list.innerHTML = html;
+  }
+
+  // Wire up add / remove / edit (event delegation on the list).
+  function bindTestCaseEditor() {
+    const addBtn = $('#addTestCaseBtn');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => {
+        state.customTestCases.push({ input: '', expected: '' });
+        renderTestCases();
+        // Focus the new case's input field for fast entry
+        const rows = $$('#testCaseList .test-case-row');
+        const last = rows[rows.length - 1];
+        if (last) {
+          const ta = last.querySelector('textarea[data-field="input"]');
+          if (ta) ta.focus();
+        }
+      });
+    }
+
+    const list = $('#testCaseList');
+    if (!list) return;
+
+    // Edit (input event on textareas)
+    list.addEventListener('input', (e) => {
+      const ta = e.target.closest('textarea[data-field]');
+      if (!ta) return;
+      const row = ta.closest('.test-case-row');
+      if (!row) return;
+      const index = parseInt(row.dataset.index, 10);
+      const field = ta.dataset.field;
+      if (state.customTestCases[index]) {
+        state.customTestCases[index][field] = ta.value;
+      }
+    });
+
+    // Remove (click event delegation)
+    list.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action="remove"]');
+      if (!btn) return;
+      const row = btn.closest('.test-case-row');
+      if (!row) return;
+      const index = parseInt(row.dataset.index, 10);
+      state.customTestCases.splice(index, 1);
+      // Keep at least one row so the user has something to edit
+      if (state.customTestCases.length === 0) {
+        state.customTestCases.push({ input: '', expected: '' });
+      }
+      renderTestCases();
+    });
   }
 
   function handleLogout() {
@@ -457,6 +568,7 @@
     if (!result) return '';
     if (result.kind === 'pending') return pendingHtml();
     if (result.kind === 'network') return networkHtml(result);
+    if (result.kind === 'test') return testCasesHtml(result.data);
     return statusHtml(result);
   }
 
@@ -487,6 +599,72 @@
           </div>
         </div>
       </div>`;
+  }
+
+  // Per-case test results (LeetCode-style "Run Code" output).
+  // Renders each test case with: index, status badge, input, expected, actual, stderr.
+  function testCasesHtml(data) {
+    const cases = (data && data.cases) || [];
+    if (cases.length === 0) {
+      return networkHtml({ message: '该题暂无测试用例' });
+    }
+
+    const passed = (typeof data.passed === 'number') ? data.passed
+                 : cases.filter(c => c.status === 'AC').length;
+    const total  = (typeof data.total  === 'number') ? data.total  : cases.length;
+    const allPass = !!data.allPassed;
+    const compileOk = data.compileSuccess !== false;
+
+    // Top status bar: badge shows pass count; color reflects overall outcome.
+    const badgeClass = allPass ? 'ac' : (compileOk ? 'wa' : 'ce');
+    const badgeText  = compileOk ? `${passed}/${total}` : 'CE';
+    const title      = compileOk ? '运行完成' : '编译错误';
+    const subtitle   = !compileOk
+      ? '代码无法编译'
+      : (allPass ? '全部用例通过' : `${passed} 个通过，${total - passed} 个失败`);
+
+    let html = `<div class="result-card result-card--test result-card--${badgeClass}" role="status">`;
+    html += '<div class="result-card__status">';
+    html += `<span class="result-card__badge">${escapeHtml(badgeText)}</span>`;
+    html += '<div>';
+    html += `<div class="result-card__label">${escapeHtml(title)}</div>`;
+    html += `<div class="result-card__label-sub">${escapeHtml(subtitle)}</div>`;
+    html += '</div></div>';
+
+    // Compile error block (only if compile failed)
+    if (!compileOk && data.compileOutput) {
+      html += '<div class="result-card__output-wrap">';
+      html += '<p class="result-card__output-label">编译信息</p>';
+      html += `<pre class="result-card__output">${escapeHtml(data.compileOutput)}</pre>`;
+      html += '</div>';
+    }
+
+    // Per-case list
+    html += '<div class="test-cases">';
+    cases.forEach((c) => {
+      const cStatus = (c.status || 'AC').toLowerCase();
+      html += `<div class="test-case test-case--${escapeHtml(cStatus)}">`;
+      html += '<div class="test-case__header">';
+      html += `<span class="test-case__num">#${(c.position || 0) + 1}</span>`;
+      html += `<span class="test-case__status">${escapeHtml(c.status || '?')}</span>`;
+      if (typeof c.executionTimeMs === 'number') {
+        html += `<span class="test-case__time">${c.executionTimeMs} ms</span>`;
+      }
+      html += '</div>';
+      html += '<div class="test-case__body">';
+      html += `<div class="test-case__row"><span class="test-case__label">输入</span><pre class="test-case__value">${escapeHtml(c.input || '')}</pre></div>`;
+      html += `<div class="test-case__row"><span class="test-case__label">预期</span><pre class="test-case__value">${escapeHtml(c.expected || '')}</pre></div>`;
+      if (c.actual) {
+        html += `<div class="test-case__row"><span class="test-case__label">实际</span><pre class="test-case__value">${escapeHtml(c.actual)}</pre></div>`;
+      }
+      if (c.stderr) {
+        html += `<div class="test-case__row"><span class="test-case__label">错误</span><pre class="test-case__value">${escapeHtml(c.stderr)}</pre></div>`;
+      }
+      html += '</div></div>';
+    });
+    html += '</div>';  // .test-cases
+    html += '</div>';  // .result-card
+    return html;
   }
 
   function statusHtml(r) {
@@ -599,6 +777,21 @@
           state.initialCode = tpl;
           state.editor.setValue(tpl, -1);
         }
+
+        // Populate the user-editable test cases from the problem's DB
+        // test cases. The user can freely edit / add / remove these — they
+        // are only used by "运行测试", not by "提交".
+        const dbCases = (state.problem.testCases || []);
+        if (dbCases.length > 0) {
+          state.customTestCases = dbCases.map(tc => ({
+            input:    tc.input    || '',
+            expected: tc.expected || ''
+          }));
+        } else if (state.customTestCases.length === 0) {
+          // No DB cases — start with one empty row so the editor isn't empty
+          state.customTestCases = [{ input: '', expected: '' }];
+        }
+        renderTestCases();
       } catch (err) {
         // .then callback threw — show the error rather than leaving the skeleton
         showError('渲染失败', '请刷新页面重试。');
@@ -629,6 +822,11 @@
         clearResult();
         if (state.editor && state.editor.focus) state.editor.focus();
       });
+    }
+
+    const runTestBtn = $('#runTestBtn');
+    if (runTestBtn) {
+      runTestBtn.addEventListener('click', runTestCode);
     }
 
     if (submitBtn) {
@@ -691,6 +889,72 @@
     });
   }
 
+  // Run tests (LeetCode "Run Code" equivalent) — returns per-case AC/WA/TLE/RE
+  // for each test case, with input/expected/actual so the user can see exactly
+  // which case failed and how. Unlike 提交, this is informational — no submission
+  // is saved. We allow this even when not authed, so the user can iterate on their
+  // code before logging in.
+  function runTestCode() {
+    if (state.submitting) return;
+
+    if (!state.problem) {
+      showResult({ kind: 'network', message: '题目尚未加载完成' });
+      return;
+    }
+
+    const code = (state.editor && state.editor.getValue() || '').trim();
+    if (!code) {
+      showResult({ kind: 'network', message: '代码不能为空' });
+      return;
+    }
+
+    const runTestBtn = $('#runTestBtn');
+    if (runTestBtn) {
+      runTestBtn.classList.add('is-loading');
+      runTestBtn.disabled = true;
+    }
+    showResult({ kind: 'pending' });
+
+    // Send the user-edited test cases (from the editor below). If the list
+    // is empty, the backend will tell us — but typically the page initializes
+    // it from the problem's DB test cases, so this should rarely be empty.
+    const cases = state.customTestCases
+      .map(c => ({ input: c.input || '', expected: c.expected || '' }))
+      .filter(c => c.input.length > 0 || c.expected.length > 0);
+
+    if (cases.length === 0) {
+      if (runTestBtn) {
+        runTestBtn.classList.remove('is-loading');
+        runTestBtn.disabled = false;
+      }
+      showResult({ kind: 'network', message: '请先在下面添加至少一个测试用例' });
+      return;
+    }
+
+    Api.runCode(state.problemId, code, cases).then((res) => {
+      if (runTestBtn) {
+        runTestBtn.classList.remove('is-loading');
+        runTestBtn.disabled = false;
+      }
+
+      if (res.status === 0) {
+        showResult({ kind: 'network', message: (res.data && res.data.error) || '请求失败' });
+        return;
+      }
+      if (res.status === 401 || res.status === 403) {
+        showResult({ kind: 'network', message: '请先登录后再运行测试' });
+        return;
+      }
+      if (!res.ok) {
+        const err = (res.data && res.data.error) || `错误 ${res.status}`;
+        showResult({ kind: 'network', message: err });
+        return;
+      }
+
+      showResult({ kind: 'test', data: res.data });
+    });
+  }
+
   /* ---------- Init ---------- */
 
   // Run a step defensively — failures must not block later steps.
@@ -737,6 +1001,7 @@
     safeCall(initEditor,            'initEditor');
     safeCall(bindActions,           'bindActions');
     safeCall(bindGlobalActions,     'bindGlobalActions');
+    safeCall(bindTestCaseEditor,     'bindTestCaseEditor');
     safeCall(verifyAuthWithServer,  'verifyAuthWithServer');
   }
 

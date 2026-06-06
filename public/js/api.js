@@ -69,6 +69,9 @@
     },
     submitCode(problemId, code) {
       return request('POST', '/api/submit', { problemId, code });
+    },
+    runCode(problemId, code, cases) {
+      return request('POST', '/api/run', { problemId, code, cases: cases || [] });
     }
   };
 
