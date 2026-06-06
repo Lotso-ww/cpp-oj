@@ -114,10 +114,6 @@
         '  font-family: "JetBrains Mono", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "WenQuanYi Micro Hei", sans-serif;',
         '  font-size: 14px;',
         '}',
-        '.ace-cpp-oj .ace_cursor {',
-        '  /* 1px hairline — thin and unobtrusive, hugs the character boundary */',
-        '  border-left: 1px solid #0A0A0A;',
-        '}',
         '.ace-cpp-oj .ace_marker-layer .ace_selection {',
         '  background: rgba(10, 10, 10, 0.08);',
         '}',
@@ -158,7 +154,6 @@
         '.ace-cpp-oj .ace_comment.ace_doc,',
         '.ace-cpp-oj .ace_comment.ace_doc-comment {',
         '  color: #9A9A9A;',
-        '  font-style: italic;',
         '}',
         '.ace-cpp-oj .ace_variable,',
         '.ace-cpp-oj .ace_variable.ace_language,',
@@ -210,6 +205,25 @@
       ]);
     } catch (_) {
       // If anything fails, just proceed — the editor will use whatever loaded
+    }
+  }
+
+  // Recompute ace's cached character-size and re-render. Call this after
+  // the editor is created and after the document value is set, so the
+  // cursor sits at the right boundary of the cell (after the new char)
+  // rather than the left boundary of the previous cell.
+  function remeasureEditor(editor) {
+    if (!editor) return;
+    try {
+      if (editor.renderer.$loop && editor.renderer.$loop._updateCharacterSize) {
+        editor.renderer.$loop._updateCharacterSize();
+      }
+      editor.resize();
+      if (editor.renderer.updateFull) {
+        editor.renderer.updateFull();
+      }
+    } catch (_) {
+      // best-effort; ignore failures
     }
   }
 
@@ -270,7 +284,6 @@
     const editor = ace.edit(editorEl, {
       mode:             'ace/mode/c_cpp',
       theme:            'ace/theme/cpp-oj',
-      fontSize:         '14px',
       tabSize:          4,
       useSoftTabs:      true,
       showPrintMargin:  false,
@@ -278,17 +291,35 @@
       showGutter:       true,
       highlightActiveLine: true,
       wrap:             false,
-      cursorWidth:      1,
+      cursorStyle:      'round',
       readOnly:         false
     });
 
     editor.renderer.setShowGutter(true);
+
+    // Set the value BEFORE setting font/size options. When fontFamily or
+    // fontSize changes, Ace re-measures character widths. By setting the
+    // value first, the subsequent re-measurement aligns the cursor to
+    // the actual rendered character cells (this is the order the working
+    // round-cursor setup uses).
+    const codeKey = 'oj_editor_code_' + (state.problemId || 'unknown');
+    const saved = (() => { try { return sessionStorage.getItem(codeKey); } catch (_) { return null; } })();
+    const isNewCode = !saved;
+    editor.session.setValue(saved || DEFAULT_CPP);
+
+    // Now apply font + size via setOptions. Ace reads fontFamily from
+    // getOption() (not from theme CSS) when measuring char widths, so
+    // setting it here is what makes the cursor land on the correct
+    // cell boundary instead of one cell to the left.
     editor.setOptions({
+      fontSize:       '14px',
+      fontFamily:     '"JetBrains Mono", monospace',
       enableBasicAutocompletion:   false,
       enableLiveAutocompletion:    false,
       enableSnippets:              false,
       animatedScroll:              true,
-      scrollPastEnd:               0.1
+      scrollPastEnd:               0.1,
+      roundedselection:            true
     });
 
     // Track focus for the border highlight
@@ -298,12 +329,10 @@
     state.editor = editor;
     state.initialCode = DEFAULT_CPP;
 
-    // Restore previously-saved code from sessionStorage (survives the
-    // login redirect roundtrip). Scoped per-problem.
-    const codeKey = 'oj_editor_code_' + (state.problemId || 'unknown');
-    const saved = (() => { try { return sessionStorage.getItem(codeKey); } catch (_) { return null; } })();
-    const isNewCode = !saved;
-    editor.setValue(saved || state.initialCode, -1);
+    // Re-measure after font/size is applied so the cursor sits on the
+    // correct cell boundary (after the new character), not one cell to
+    // the left.
+    remeasureEditor(editor);
 
     if (isNewCode) {
       placeCursorOnComment(editor, state.initialCode);
@@ -776,6 +805,9 @@
         if (tpl && state.editor) {
           state.initialCode = tpl;
           state.editor.setValue(tpl, -1);
+          // Realign the cursor with the rendered characters after the
+          // template swap (same reason as in initEditor).
+          remeasureEditor(state.editor);
         }
 
         // Populate the user-editable test cases from the problem's DB
