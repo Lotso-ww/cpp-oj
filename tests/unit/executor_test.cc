@@ -229,6 +229,8 @@ int main() {
 
     EXPECT_TRUE(response.compileSuccess);
     EXPECT_EQ(response.result, oj::RunResult::SUCCESS);
+    // 全 AC 时也应回填最后一个用例的实际输出（修复后）
+    EXPECT_EQ(response.stdout, "Hello, OJ!\n");
 }
 
 TEST_F(ExecutorTest, FloatingPointOutput) {

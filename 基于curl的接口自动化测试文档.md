@@ -111,6 +111,247 @@ curl -s -w "\nHTTP_CODE:%{http_code}" -X POST http://localhost:8080/api/submit \
 
 ---
 
+## 3b. 自定义用例运行模块
+
+> 与 `/api/submit` 的区别：`/api/run`（类似 LeetCode "Run Code"）支持用户在请求体中携带 `cases` 数组，**不落库**，返回**逐用例**结果（AC/WA/TLE/RE/CE）。
+> - 仅传 `problemId` 时使用题目默认用例
+> - 传 `cases` 时使用用户自定义用例（忽略题目默认用例）
+
+### 3b.1 自定义用例运行（AC - 全部通过）
+
+```bash
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST http://localhost:8080/api/run \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code":"#include <iostream>\nusing namespace std;\nint main(){int a,b;cin>>a>>b;cout<<a+b<<endl;return 0;}",
+    "problemId":840,
+    "cases":[
+      {"input":"1 2","expected":"3\n"},
+      {"input":"10 20","expected":"30\n"}
+    ]
+  }' \
+  -b /tmp/admin_cookies.txt
+```
+
+**预期响应 (AC - 全部通过)：** 200，包含 `compileSuccess=true`、`allPassed=true`、`passed=2`、`total=2`，`cases` 数组中每条记录的 `status` 都是 `"AC"`。
+
+---
+
+### 3b.2 使用题目默认用例运行（AC）
+
+```bash
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST http://localhost:8080/api/run \
+  -H "Content-Type: application/json" \
+  -d '{"code":"#include <iostream>\nusing namespace std;\nint main(){int a,b;cin>>a>>b;cout<<a+b<<endl;return 0;}","problemId":840}' \
+  -b /tmp/admin_cookies.txt
+```
+
+**预期响应：** 200，`compileSuccess=true`、`allPassed=true`，`cases` 数组长度等于题目默认用例数。
+
+---
+
+### 3b.3 自定义用例运行（WA - 部分用例错误）
+
+```bash
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST http://localhost:8080/api/run \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code":"#include <iostream>\nint main(){int a,b;cin>>a>>b;cout<<a-b<<endl;return 0;}",
+    "problemId":840,
+    "cases":[
+      {"input":"1 2","expected":"3\n"},
+      {"input":"5 6","expected":"11\n"}
+    ]
+  }' \
+  -b /tmp/admin_cookies.txt
+```
+
+**预期响应 (WA)：** 200，`compileSuccess=true`、`allPassed=false`、`passed=0`、`total=2`，每条 `status` 都是 `"WA"`，且 `cases[0].status="WA"` 表示首个用例错误。
+
+---
+
+### 3b.4 自定义用例运行（CE - 编译错误）
+
+```bash
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST http://localhost:8080/api/run \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code":"#include <iostream>\nint main(){int x = undefined_variable; return 0;}",
+    "problemId":840,
+    "cases":[{"input":"1 2","expected":"3\n"}]
+  }' \
+  -b /tmp/admin_cookies.txt
+```
+
+**预期响应 (CE)：** 200，`compileSuccess=false`，`cases[0].status="CE"`，`compileOutput` 包含编译错误信息。仅首个用例会被记录（CE 提前停止后续用例）。
+
+---
+
+### 3b.5 自定义用例运行（TLE - 超时）
+
+```bash
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST http://localhost:8080/api/run \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code":"#include <iostream>\nint main(){while(1){}return 0;}",
+    "problemId":840,
+    "cases":[{"input":"","expected":""}]
+  }' \
+  -b /tmp/admin_cookies.txt
+```
+
+**预期响应 (TLE)：** 200，`compileSuccess=true`，`cases[0].status="TLE"`。
+
+---
+
+### 3b.6 自定义用例运行（RE - 段错误）
+
+```bash
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST http://localhost:8080/api/run \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code":"#include <iostream>\nint main(){int* p=nullptr; *p=42; return 0;}",
+    "problemId":840,
+    "cases":[{"input":"","expected":""}]
+  }' \
+  -b /tmp/admin_cookies.txt
+```
+
+**预期响应 (RE)：** 200，`compileSuccess=true`，`cases[0].status="RE"`。
+
+---
+
+### 3b.7 自定义用例为空数组（应被拒绝）
+
+```bash
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST http://localhost:8080/api/run \
+  -H "Content-Type: application/json" \
+  -d '{"code":"#include <iostream>\nint main(){return 0;}","problemId":840,"cases":[]}' \
+  -b /tmp/admin_cookies.txt
+```
+
+**预期响应：** `{"error":"请添加至少一个测试用例"}` (400)
+
+---
+
+### 3b.8 缺少 code 字段
+
+```bash
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST http://localhost:8080/api/run \
+  -H "Content-Type: application/json" \
+  -d '{"problemId":840}' \
+  -b /tmp/admin_cookies.txt
+```
+
+**预期响应：** `{"error":"Missing required fields: code, problemId"}` (400)
+
+---
+
+### 3b.9 缺少 problemId 字段
+
+```bash
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST http://localhost:8080/api/run \
+  -H "Content-Type: application/json" \
+  -d '{"code":"int main(){return 0;}"}' \
+  -b /tmp/admin_cookies.txt
+```
+
+**预期响应：** `{"error":"Missing required fields: code, problemId"}` (400)
+
+---
+
+### 3b.10 非法 JSON
+
+```bash
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST http://localhost:8080/api/run \
+  -H "Content-Type: application/json" \
+  -d 'not json' \
+  -b /tmp/admin_cookies.txt
+```
+
+**预期响应：** `{"error":"Invalid JSON"}` (400)
+
+---
+
+### 3b.11 code 为空字符串
+
+```bash
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST http://localhost:8080/api/run \
+  -H "Content-Type: application/json" \
+  -d '{"code":"","problemId":840}' \
+  -b /tmp/admin_cookies.txt
+```
+
+**预期响应：** `{"error":"Code cannot be empty"}` (400)
+
+---
+
+### 3b.12 自定义用例不存在的 problemId（不查库，直接走用例）
+
+```bash
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST http://localhost:8080/api/run \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code":"#include <iostream>\nint main(){int a,b;cin>>a>>b;cout<<a+b<<endl;return 0;}",
+    "problemId":99999,
+    "cases":[{"input":"1 2","expected":"3\n"}]
+  }' \
+  -b /tmp/admin_cookies.txt
+```
+
+**预期响应：** 200，自定义用例模式不校验 problemId 是否存在，正常返回结果（`allPassed=true`）。
+
+---
+
+### 3b.13 不传 cases 时题目不存在
+
+```bash
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST http://localhost:8080/api/run \
+  -H "Content-Type: application/json" \
+  -d '{"code":"int main(){return 0;}","problemId":99999}' \
+  -b /tmp/admin_cookies.txt
+```
+
+**预期响应：** `{"error":"Problem not found"}` (404)
+
+---
+
+### 3b.14 不传 cases 时题目无测试用例
+
+```bash
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST http://localhost:8080/api/run \
+  -H "Content-Type: application/json" \
+  -d '{"code":"#include <iostream>\nint main(){return 0;}","problemId":<无测试用例的题目ID>}' \
+  -b /tmp/admin_cookies.txt
+```
+
+**预期响应：** `{"error":"No test cases configured for this problem"}` (400)
+
+---
+
+### 3b.15 响应字段（用于断言参考）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| compileSuccess | bool | 是否编译通过 |
+| compileOutput  | string | 编译输出（成功时通常为空，CE 时为编译器错误） |
+| cases          | array  | 逐用例结果数组 |
+| cases[].position        | int    | 用例序号（0-based） |
+| cases[].input           | string | 实际输入 |
+| cases[].expected        | string | 期望输出 |
+| cases[].actual          | string | 实际输出（AC 时也回填，对应程序的 stdout） |
+| cases[].stderr          | string | 运行时 stderr |
+| cases[].executionTimeMs | int    | 单用例执行毫秒 |
+| cases[].compileSuccess  | bool   | 单用例编译是否成功（与顶层一致） |
+| cases[].compileOutput   | string | 单用例编译输出 |
+| cases[].errorMessage    | string | 内部错误信息（通常不需要断言） |
+| cases[].status          | string | `AC` / `WA` / `TLE` / `RE` / `CE` / `SYSTEM_ERROR` |
+| passed | int | 通过的用例数 |
+| total  | int | 实际执行的用例数（CE 时可能 < 请求用例数） |
+| allPassed | bool | 是否全部通过 |
+
+---
+
 ## 4. 管理模块
 
 ### 4.1 新增题目（管理员）
@@ -350,6 +591,78 @@ curl -s -X DELETE $BASE_URL/api/admin/problems/$PROBLEM_ID \
   -b $ADMIN_COOKIE | tee -a $LOG_FILE
 echo ""
 
+# 12.5 自定义用例运行 (AC) - 需先创建一个有测试用例的题目
+echo -e "\n\n[3b.1] /api/run 自定义用例 (AC)" | tee -a $LOG_FILE
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST $BASE_URL/api/run \
+  -H "Content-Type: application/json" \
+  -d "{\"code\":\"#include <iostream>\\nusing namespace std;\\nint main(){int a,b;cin>>a>>b;cout<<a+b<<endl;return 0;}\",\"problemId\":$PROBLEM_ID,\"cases\":[{\"input\":\"1 2\",\"expected\":\"3\\n\"},{\"input\":\"10 20\",\"expected\":\"30\\n\"}]}" \
+  -b $ADMIN_COOKIE | tee -a $LOG_FILE
+echo ""
+
+# 12.6 /api/run 自定义用例 (WA)
+echo -e "\n\n[3b.3] /api/run 自定义用例 (WA)" | tee -a $LOG_FILE
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST $BASE_URL/api/run \
+  -H "Content-Type: application/json" \
+  -d "{\"code\":\"#include <iostream>\\nint main(){int a,b;cin>>a>>b;cout<<a-b<<endl;return 0;}\",\"problemId\":$PROBLEM_ID,\"cases\":[{\"input\":\"1 2\",\"expected\":\"3\\n\"}]}" \
+  -b $ADMIN_COOKIE | tee -a $LOG_FILE
+echo ""
+
+# 12.7 /api/run 自定义用例 (CE)
+echo -e "\n\n[3b.4] /api/run 自定义用例 (CE)" | tee -a $LOG_FILE
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST $BASE_URL/api/run \
+  -H "Content-Type: application/json" \
+  -d "{\"code\":\"#include <iostream>\\nint main(){int x = undefined_variable; return 0;}\",\"problemId\":$PROBLEM_ID,\"cases\":[{\"input\":\"1 2\",\"expected\":\"3\\n\"}]}" \
+  -b $ADMIN_COOKIE | tee -a $LOG_FILE
+echo ""
+
+# 12.8 /api/run 空 cases 数组
+echo -e "\n\n[3b.7] /api/run 空 cases 数组" | tee -a $LOG_FILE
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST $BASE_URL/api/run \
+  -H "Content-Type: application/json" \
+  -d "{\"code\":\"#include <iostream>\\nint main(){return 0;}\",\"problemId\":$PROBLEM_ID,\"cases\":[]}" \
+  -b $ADMIN_COOKIE | tee -a $LOG_FILE
+echo ""
+
+# 12.9 /api/run 非法 JSON
+echo -e "\n\n[3b.10] /api/run 非法 JSON" | tee -a $LOG_FILE
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST $BASE_URL/api/run \
+  -H "Content-Type: application/json" \
+  -d 'not json' \
+  -b $ADMIN_COOKIE | tee -a $LOG_FILE
+echo ""
+
+# 12.10 /api/run 缺 code 字段
+echo -e "\n\n[3b.8] /api/run 缺 code 字段" | tee -a $LOG_FILE
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST $BASE_URL/api/run \
+  -H "Content-Type: application/json" \
+  -d "{\"problemId\":$PROBLEM_ID}" \
+  -b $ADMIN_COOKIE | tee -a $LOG_FILE
+echo ""
+
+# 12.11 /api/run 缺 problemId 字段
+echo -e "\n\n[3b.9] /api/run 缺 problemId 字段" | tee -a $LOG_FILE
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST $BASE_URL/api/run \
+  -H "Content-Type: application/json" \
+  -d '{"code":"int main(){return 0;}"}' \
+  -b $ADMIN_COOKIE | tee -a $LOG_FILE
+echo ""
+
+# 12.12 /api/run code 为空
+echo -e "\n\n[3b.11] /api/run code 为空" | tee -a $LOG_FILE
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST $BASE_URL/api/run \
+  -H "Content-Type: application/json" \
+  -d "{\"code\":\"\",\"problemId\":$PROBLEM_ID}" \
+  -b $ADMIN_COOKIE | tee -a $LOG_FILE
+echo ""
+
+# 12.13 /api/run 不查库时 problemId 不存在
+echo -e "\n\n[3b.13] /api/run 不查库 problemId 不存在" | tee -a $LOG_FILE
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST $BASE_URL/api/run \
+  -H "Content-Type: application/json" \
+  -d '{"code":"int main(){return 0;}","problemId":99999}' \
+  -b $ADMIN_COOKIE | tee -a $LOG_FILE
+echo ""
+
 # 13. 管理员删除不存在的题目（404）
 echo -e "\n\n[4.3] 删除不存在的题目" | tee -a $LOG_FILE
 curl -s -w "\nHTTP_CODE:%{http_code}" -X DELETE $BASE_URL/api/admin/problems/99999 \
@@ -442,6 +755,78 @@ curl -s -X DELETE $BASE_URL/api/admin/problems/$PROBLEM_ID \
   -b $ADMIN_COOKIE
 echo ""
 
+# 9.5 /api/run 自定义用例 (AC)
+echo -e "\n\n[3b.1] /api/run 自定义用例 (AC)"
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST $BASE_URL/api/run \
+  -H "Content-Type: application/json" \
+  -d '{"code":"#include <iostream>\nusing namespace std;\nint main(){int a,b;cin>>a>>b;cout<<a+b<<endl;return 0;}","problemId":'$PROBLEM_ID',"cases":[{"input":"1 2","expected":"3\n"},{"input":"10 20","expected":"30\n"}]}' \
+  -b $ADMIN_COOKIE
+echo ""
+
+# 9.6 /api/run 自定义用例 (WA)
+echo -e "\n\n[3b.3] /api/run 自定义用例 (WA)"
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST $BASE_URL/api/run \
+  -H "Content-Type: application/json" \
+  -d '{"code":"#include <iostream>\nint main(){int a,b;cin>>a>>b;cout<<a-b<<endl;return 0;}","problemId":'$PROBLEM_ID',"cases":[{"input":"1 2","expected":"3\n"}]}' \
+  -b $ADMIN_COOKIE
+echo ""
+
+# 9.7 /api/run 自定义用例 (CE)
+echo -e "\n\n[3b.4] /api/run 自定义用例 (CE)"
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST $BASE_URL/api/run \
+  -H "Content-Type: application/json" \
+  -d '{"code":"#include <iostream>\nint main(){int x = undefined_variable; return 0;}","problemId":'$PROBLEM_ID',"cases":[{"input":"1 2","expected":"3\n"}]}' \
+  -b $ADMIN_COOKIE
+echo ""
+
+# 9.8 /api/run 空 cases
+echo -e "\n\n[3b.7] /api/run 空 cases"
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST $BASE_URL/api/run \
+  -H "Content-Type: application/json" \
+  -d '{"code":"int main(){return 0;}","problemId":'$PROBLEM_ID',"cases":[]}' \
+  -b $ADMIN_COOKIE
+echo ""
+
+# 9.9 /api/run 非法 JSON
+echo -e "\n\n[3b.10] /api/run 非法 JSON"
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST $BASE_URL/api/run \
+  -H "Content-Type: application/json" \
+  -d 'not json' \
+  -b $ADMIN_COOKIE
+echo ""
+
+# 9.10 /api/run 缺 code
+echo -e "\n\n[3b.8] /api/run 缺 code"
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST $BASE_URL/api/run \
+  -H "Content-Type: application/json" \
+  -d '{"problemId":'$PROBLEM_ID'}' \
+  -b $ADMIN_COOKIE
+echo ""
+
+# 9.11 /api/run 缺 problemId
+echo -e "\n\n[3b.9] /api/run 缺 problemId"
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST $BASE_URL/api/run \
+  -H "Content-Type: application/json" \
+  -d '{"code":"int main(){return 0;}"}' \
+  -b $ADMIN_COOKIE
+echo ""
+
+# 9.12 /api/run code 为空
+echo -e "\n\n[3b.11] /api/run code 为空"
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST $BASE_URL/api/run \
+  -H "Content-Type: application/json" \
+  -d '{"code":"","problemId":'$PROBLEM_ID'}' \
+  -b $ADMIN_COOKIE
+echo ""
+
+# 9.13 /api/run 不查库 problemId 不存在
+echo -e "\n\n[3b.13] /api/run 不查库 problemId 不存在"
+curl -s -w "\nHTTP_CODE:%{http_code}" -X POST $BASE_URL/api/run \
+  -H "Content-Type: application/json" \
+  -d '{"code":"int main(){return 0;}","problemId":99999}' \
+  -b $ADMIN_COOKIE
+echo ""
+
 # 10. 管理员删除不存在的题目（404）
 echo -e "\n\n[4.3] 删除不存在的题目"
 curl -s -w "\nHTTP_CODE:%{http_code}" -X DELETE $BASE_URL/api/admin/problems/99999 \
@@ -474,6 +859,12 @@ echo -e "\n\n========== 测试完成 =========="
 | 7 | `/api/submit` (CE) | POST | 200 | ✅ |
 | 8 | `/api/admin/problems` | POST | 201 | ✅ |
 | 9 | `/api/admin/problems/:id` | DELETE | 200 | ✅ |
+| 10 | `/api/run` 自定义用例 (AC) | POST | 200 | ✅ |
+| 11 | `/api/run` 默认用例 (AC) | POST | 200 | ✅ |
+| 12 | `/api/run` 自定义用例 (WA) | POST | 200 | ✅ |
+| 13 | `/api/run` 自定义用例 (CE) | POST | 200 | ✅ |
+| 14 | `/api/run` 自定义用例 (TLE) | POST | 200 | ✅ |
+| 15 | `/api/run` 自定义用例 (RE) | POST | 200 | ✅ |
 
 ### 负面测试
 
@@ -488,6 +879,12 @@ echo -e "\n\n========== 测试完成 =========="
 | 7 | 提交到无测试用例题目 | `/api/submit` | 400 | ✅ |
 | 8 | 提交到不存在的题目 | `/api/submit` | 404 | ✅ |
 | 9 | 获取不存在的题目详情 | `/api/problems/:id` | 404 | ✅ |
+| 10 | `/api/run` 空 cases 数组 | `/api/run` | 400 | ✅ |
+| 11 | `/api/run` 缺 code 字段 | `/api/run` | 400 | ✅ |
+| 12 | `/api/run` 缺 problemId 字段 | `/api/run` | 400 | ✅ |
+| 13 | `/api/run` 非法 JSON | `/api/run` | 400 | ✅ |
+| 14 | `/api/run` code 为空 | `/api/run` | 400 | ✅ |
+| 15 | `/api/run` 不查库 + 不存在的 problemId | `/api/run` | 404 | ✅ |
 
 ---
 

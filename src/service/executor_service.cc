@@ -377,6 +377,13 @@ ExecutionResponse ExecutorService::compileAndRun(const std::string& sourceCode,
             unlink(execPath.c_str());
             return finalResponse;
         }
+
+        // Track the last successful case's output so callers (run_handler
+        // in particular) can surface `actual` on AC. The previous behaviour
+        // dropped stdout on the all-pass path.
+        finalResponse.stdout = runResp.stdout;
+        finalResponse.stderr = runResp.stderr;
+        finalResponse.executionTimeMs = runResp.executionTimeMs;
     }
 
     finalResponse.result = RunResult::SUCCESS;

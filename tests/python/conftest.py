@@ -152,6 +152,12 @@ class APIClient:
     def submit_code(self, code: str, problem_id: int, cookies: Optional[Dict] = None) -> requests.Response:
         return self.post("/api/submit", json_data={"code": code, "problemId": problem_id}, cookies=cookies)
 
+    def run_code(self, code: str, problem_id: int, cases: Optional[List[Dict]] = None, cookies: Optional[Dict] = None) -> requests.Response:
+        json_data = {"code": code, "problemId": problem_id}
+        if cases is not None:
+            json_data["cases"] = cases
+        return self.post("/api/run", json_data=json_data, cookies=cookies)
+
     def create_problem(self, problem_data: Dict, cookies: Optional[Dict] = None) -> requests.Response:
         return self.post("/api/admin/problems", json_data=problem_data, cookies=cookies)
 

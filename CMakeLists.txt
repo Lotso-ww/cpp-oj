@@ -108,6 +108,10 @@ add_executable(executor_test ${TEST_SOURCES} src/service/executor_service.cc tes
 target_link_libraries(executor_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient crypt botan-2)
 add_test(NAME executor_test COMMAND executor_test)
 
+add_executable(run_handler_test ${TEST_SOURCES} src/handler/run_handler.cc src/service/executor_service.cc tests/unit/run_handler_test.cc)
+target_link_libraries(run_handler_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient jsoncpp crypt botan-2)
+add_test(NAME run_handler_test COMMAND run_handler_test)
+
 add_executable(session_test ${TEST_SOURCES} src/service/session.cc src/service/session_manager.cc tests/unit/session_test.cc)
 target_link_libraries(session_test /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a yaml-cpp pthread mysqlclient crypt botan-2)
 add_test(NAME session_test COMMAND session_test)

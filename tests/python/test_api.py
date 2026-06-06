@@ -263,3 +263,254 @@ class TestNegative:
     def test_5_11_register_empty_password(self, api_regular):
         response = api_regular.register("testuser_empty_pwd", "")
         assert response.status_code == 400
+
+
+class TestRun:
+    SIMPLE_ADD_CODE = "#include <iostream>\nusing namespace std;\nint main(){int a,b;cin>>a>>b;cout<<a+b<<endl;return 0;}"
+    SUBTRACT_CODE = "#include <iostream>\nint main(){int a,b;cin>>a>>b;cout<<a-b<<endl;return 0;}"
+    COMPILE_ERROR_CODE = "#include <iostream>\nint main(){int x = undefined_variable; return 0;}"
+    TIMEOUT_CODE = "#include <iostream>\nint main(){while(1){}return 0;}"
+    SEGFAULT_CODE = "#include <iostream>\nint main(){int* p=nullptr;*p=42;return 0;}"
+
+    @pytest.fixture
+    def run_problem(self, api_admin, admin_cookies, timestamp, unique_suffix):
+        problem_data = {
+            "title": f"运行测试题_{timestamp}_{unique_suffix}",
+            "difficulty": "Easy",
+            "content": "Run handler tests",
+            "template": "#include <iostream>",
+            "testCases": [
+                {"input": "1 2", "expected": "3\n"},
+                {"input": "5 7", "expected": "12\n"},
+                {"input": "10 20", "expected": "30\n"},
+            ],
+        }
+        response = api_admin.create_problem(problem_data, admin_cookies)
+        return response.json().get("id")
+
+    @pytest.fixture
+    def run_problem_no_cases(self, api_admin, admin_cookies, timestamp, unique_suffix):
+        problem_data = {
+            "title": f"无测试用例_运行_{timestamp}_{unique_suffix}",
+            "difficulty": "Easy",
+            "content": "Empty cases for run handler",
+            "template": "#include <iostream>",
+            "testCases": [],
+        }
+        response = api_admin.create_problem(problem_data, admin_cookies)
+        return response.json().get("id")
+
+    # ---- 正向：用默认用例 ----
+
+    @pytest.mark.run
+    @pytest.mark.slow
+    def test_6_1_run_default_cases_all_ac(self, api_admin, admin_cookies, run_problem):
+        response = api_admin.run_code(self.SIMPLE_ADD_CODE, run_problem, cases=None, cookies=admin_cookies)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["compileSuccess"] is True
+        assert data["passed"] == 3
+        assert data["total"] == 3
+        assert data["allPassed"] is True
+        assert isinstance(data["cases"], list)
+        assert len(data["cases"]) == 3
+        for c in data["cases"]:
+            assert c["status"] == "AC"
+            assert c["compileSuccess"] is True
+            # AC 分支也必须回填实际输出（修复后）
+            assert c["actual"] == c["expected"]
+
+    @pytest.mark.run
+    @pytest.mark.slow
+    def test_6_2_run_default_cases_per_case_fields(self, api_admin, admin_cookies, run_problem):
+        response = api_admin.run_code(self.SIMPLE_ADD_CODE, run_problem, cases=None, cookies=admin_cookies)
+        assert response.status_code == 200
+        cases = response.json()["cases"]
+        for i, c in enumerate(cases):
+            assert c["position"] == i
+            assert "input" in c
+            assert "expected" in c
+            assert "actual" in c
+            assert "stderr" in c
+            assert "executionTimeMs" in c
+            assert "compileOutput" in c
+            assert "errorMessage" in c
+            assert "status" in c
+
+    @pytest.mark.run
+    @pytest.mark.slow
+    def test_6_3_run_default_cases_mixed_pass_fail(self, api_admin, admin_cookies, run_problem):
+        # 只让 1 2 -> 3 通过；其余用减法全部 WA
+        code_with_conditional = (
+            "#include <iostream>\n"
+            "using namespace std;\n"
+            "int main(){int a,b;cin>>a>>b;"
+            "if(a==1 && b==2){cout<<3<<endl;}"
+            "else{cout<<a-b<<endl;}return 0;}"
+        )
+        response = api_admin.run_code(code_with_conditional, run_problem, cases=None, cookies=admin_cookies)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["compileSuccess"] is True
+        assert data["passed"] == 1
+        assert data["total"] == 3
+        assert data["allPassed"] is False
+        assert data["cases"][0]["status"] == "AC"
+        assert data["cases"][1]["status"] == "WA"
+        assert data["cases"][2]["status"] == "WA"
+
+    # ---- 正向：用自定义用例 ----
+
+    @pytest.mark.run
+    @pytest.mark.slow
+    def test_6_4_run_custom_cases_all_ac(self, api_admin, admin_cookies, run_problem):
+        cases = [
+            {"input": "100 200", "expected": "300\n"},
+            {"input": "-5 5", "expected": "0\n"},
+        ]
+        response = api_admin.run_code(self.SIMPLE_ADD_CODE, run_problem, cases=cases, cookies=admin_cookies)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["compileSuccess"] is True
+        assert data["passed"] == 2
+        assert data["total"] == 2
+        assert data["allPassed"] is True
+        assert data["cases"][0]["status"] == "AC"
+        assert data["cases"][0]["actual"] == "300\n"
+        assert data["cases"][1]["status"] == "AC"
+        assert data["cases"][1]["actual"] == "0\n"
+
+    @pytest.mark.run
+    @pytest.mark.slow
+    def test_6_5_run_custom_cases_wa(self, api_admin, admin_cookies, run_problem):
+        cases = [{"input": "1 2", "expected": "999\n"}]
+        response = api_admin.run_code(self.SIMPLE_ADD_CODE, run_problem, cases=cases, cookies=admin_cookies)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["compileSuccess"] is True
+        assert data["passed"] == 0
+        assert data["total"] == 1
+        assert data["allPassed"] is False
+        assert data["cases"][0]["status"] == "WA"
+
+    @pytest.mark.run
+    @pytest.mark.slow
+    def test_6_6_run_custom_cases_ce(self, api_admin, admin_cookies, run_problem):
+        cases = [
+            {"input": "1 2", "expected": "3\n"},
+            {"input": "5 6", "expected": "11\n"},
+        ]
+        response = api_admin.run_code(self.COMPILE_ERROR_CODE, run_problem, cases=cases, cookies=admin_cookies)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["compileSuccess"] is False
+        assert data["allPassed"] is False
+        # CE 提前停止：只会执行首条用例
+        assert data["total"] == 1
+        assert data["cases"][0]["status"] == "CE"
+        assert data["cases"][0]["compileSuccess"] is False
+        assert "undefined_variable" in data["compileOutput"] or "undefined_variable" in data["cases"][0]["compileOutput"]
+
+    @pytest.mark.run
+    @pytest.mark.slow
+    def test_6_7_run_custom_cases_tle(self, api_admin, admin_cookies, run_problem):
+        cases = [{"input": "", "expected": ""}]
+        response = api_admin.run_code(self.TIMEOUT_CODE, run_problem, cases=cases, cookies=admin_cookies)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["compileSuccess"] is True
+        assert data["cases"][0]["status"] == "TLE"
+        assert data["allPassed"] is False
+
+    @pytest.mark.run
+    @pytest.mark.slow
+    def test_6_8_run_custom_cases_re(self, api_admin, admin_cookies, run_problem):
+        cases = [{"input": "", "expected": ""}]
+        response = api_admin.run_code(self.SEGFAULT_CODE, run_problem, cases=cases, cookies=admin_cookies)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["compileSuccess"] is True
+        assert data["cases"][0]["status"] == "RE"
+        assert data["allPassed"] is False
+
+    @pytest.mark.run
+    @pytest.mark.slow
+    def test_6_9_run_custom_cases_position_increments(self, api_admin, admin_cookies, run_problem):
+        cases = [
+            {"input": "1", "expected": "1\n"},
+            {"input": "2", "expected": "2\n"},
+            {"input": "3", "expected": "3\n"},
+        ]
+        code = "#include <iostream>\nusing namespace std;\nint main(){int x;cin>>x;cout<<x<<endl;return 0;}"
+        response = api_admin.run_code(code, run_problem, cases=cases, cookies=admin_cookies)
+        assert response.status_code == 200
+        result_cases = response.json()["cases"]
+        assert [c["position"] for c in result_cases] == [0, 1, 2]
+
+    @pytest.mark.run
+    def test_6_10_run_custom_cases_does_not_require_problem_id(self, api_admin, admin_cookies):
+        # 自定义用例模式下，problemId 任意均可（不查库）
+        cases = [{"input": "1 2", "expected": "3\n"}]
+        response = api_admin.run_code(self.SIMPLE_ADD_CODE, 99999, cases=cases, cookies=admin_cookies)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["allPassed"] is True
+        assert data["passed"] == 1
+
+    # ---- 负面场景 ----
+
+    @pytest.mark.run
+    @pytest.mark.negative
+    def test_6_11_run_invalid_json(self, api_admin, admin_cookies):
+        # 发送一个无法被解析为 JSON 的原始字节体
+        response = api_admin.session.post(
+            f"{api_admin.base_url}/api/run",
+            data=b"this is not valid json {[",
+            headers={"Content-Type": "application/json"},
+            cookies=admin_cookies,
+        )
+        assert response.status_code == 400
+        assert response.json().get("error") == "Invalid JSON"
+
+    @pytest.mark.run
+    @pytest.mark.negative
+    def test_6_12_run_missing_code(self, api_admin, admin_cookies):
+        response = api_admin.post("/api/run", json_data={"problemId": 1}, cookies=admin_cookies)
+        assert response.status_code == 400
+        assert response.json().get("error") == "Missing required fields: code, problemId"
+
+    @pytest.mark.run
+    @pytest.mark.negative
+    def test_6_13_run_missing_problem_id(self, api_admin, admin_cookies):
+        response = api_admin.post("/api/run", json_data={"code": "int main(){return 0;}"}, cookies=admin_cookies)
+        assert response.status_code == 400
+        assert response.json().get("error") == "Missing required fields: code, problemId"
+
+    @pytest.mark.run
+    @pytest.mark.negative
+    def test_6_14_run_empty_code(self, api_admin, admin_cookies, run_problem):
+        response = api_admin.run_code("", run_problem, cases=None, cookies=admin_cookies)
+        assert response.status_code == 400
+        assert response.json().get("error") == "Code cannot be empty"
+
+    @pytest.mark.run
+    @pytest.mark.negative
+    def test_6_15_run_default_cases_problem_not_found(self, api_admin, admin_cookies):
+        # 不传 cases 时，不存在的 problemId 应返回 404
+        response = api_admin.run_code(self.SIMPLE_ADD_CODE, 99999, cases=None, cookies=admin_cookies)
+        assert response.status_code == 404
+        assert response.json().get("error") == "Problem not found"
+
+    @pytest.mark.run
+    @pytest.mark.negative
+    def test_6_16_run_default_cases_problem_has_no_cases(self, api_admin, admin_cookies, run_problem_no_cases):
+        response = api_admin.run_code(self.SIMPLE_ADD_CODE, run_problem_no_cases, cases=None, cookies=admin_cookies)
+        assert response.status_code == 400
+        assert response.json().get("error") == "No test cases configured for this problem"
+
+    @pytest.mark.run
+    @pytest.mark.negative
+    def test_6_17_run_empty_custom_cases_array(self, api_admin, admin_cookies, run_problem):
+        response = api_admin.run_code(self.SIMPLE_ADD_CODE, run_problem, cases=[], cookies=admin_cookies)
+        assert response.status_code == 400
+        assert response.json().get("error") == "请添加至少一个测试用例"
