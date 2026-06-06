@@ -72,6 +72,13 @@
     },
     runCode(problemId, code, cases) {
       return request('POST', '/api/run', { problemId, code, cases: cases || [] });
+    },
+    // ----- Admin endpoints (require admin role; 403 otherwise) -----
+    createProblem(payload) {
+      return request('POST', '/api/admin/problems', payload);
+    },
+    deleteProblem(id) {
+      return request('DELETE', '/api/admin/problems/' + encodeURIComponent(id));
     }
   };
 

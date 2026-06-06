@@ -29,7 +29,6 @@ private:
     std::string tokenChars_;
     mutable std::mutex mutex_;
     std::mt19937 rng_;
-
     std::unordered_map<std::string, std::unique_ptr<Session>> sessions_;
 };
 

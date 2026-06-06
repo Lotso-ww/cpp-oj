@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#FAFAF7" />
+  <meta name="description" content="管理后台 · 新增、删除题目。CPP·OJ — 为 C++ 学习者打造的在线评测系统。" />
+  <title>管理后台 · CPP·OJ</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Fraunces:opsz,wght@9..144,300;9..144,400&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css" />
+  <link rel="stylesheet" href="/css/style.css?v=7" />
+</head>
+<body>
+  <main class="page page--admin" role="main">
+
+    <header class="topbar">
+      <div class="topbar__inner">
+        <a href="/index.html" class="wordmark" aria-label="CPP OJ — 首页">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 19h8" />
+            <path d="m4 17 6-6-6-6" />
+            <path d="m12 11 6 6" />
+          </svg>
+          <span>CPP&nbsp;·&nbsp;OJ</span>
+        </a>
+
+        <nav class="nav" aria-label="主导航">
+          <a href="/problem_list.html" class="nav__item">题目</a>
+          <a href="/admin.html" class="nav__item is-active" aria-current="page">管理</a>
+        </nav>
+
+        <div class="user-menu" id="userMenu">
+          <!-- Filled by JS once we know the auth state -->
+        </div>
+      </div>
+    </header>
+
+    <div class="container">
+
+      <header class="page-header">
+        <span class="page-header__eyebrow">
+          <span class="dot" aria-hidden="true"></span>
+          <span>题库 · 管理</span>
+        </span>
+        <h1 class="page-header__heading">管理后台</h1>
+        <p class="page-header__subhead">新增题目，或者从题库中删除题目。</p>
+      </header>
+
+      <!-- ───────── Two-column layout: form on the left, list on the right ───────── -->
+      <div class="admin-layout">
+
+      <!-- ───────── New-problem form ───────── -->
+      <section class="admin-form" id="newProblemCard" aria-label="新增题目">
+        <header class="admin-form__head">
+          <h2 class="admin-form__title">新增题目</h2>
+          <p class="admin-form__hint">填写标题、难度、Markdown 描述、可选代码模板和测试用例（每行一组）。</p>
+        </header>
+
+        <form id="newProblemForm" class="form" novalidate>
+          <div class="form__row form__row--cols-2">
+            <label class="form__field">
+              <span class="form__label">标题</span>
+              <input class="form__input" type="text" name="title" required maxlength="255"
+                placeholder="例如：两数之和" autocomplete="off" />
+            </label>
+
+            <label class="form__field">
+              <span class="form__label">难度</span>
+              <div class="form__radio-group" role="radiogroup" aria-label="难度">
+                <label class="form__radio">
+                  <input type="radio" name="difficulty" value="Easy" checked />
+                  <span class="form__radio-dot" aria-hidden="true"></span>
+                  <span>简单</span>
+                </label>
+                <label class="form__radio">
+                  <input type="radio" name="difficulty" value="Medium" />
+                  <span class="form__radio-dot" aria-hidden="true"></span>
+                  <span>中等</span>
+                </label>
+                <label class="form__radio">
+                  <input type="radio" name="difficulty" value="Hard" />
+                  <span class="form__radio-dot" aria-hidden="true"></span>
+                  <span>困难</span>
+                </label>
+              </div>
+            </label>
+          </div>
+
+          <label class="form__field">
+            <span class="form__label">题目描述 <span class="form__label-meta">Markdown</span></span>
+            <textarea class="form__textarea form__textarea--tall" name="content" required rows="8"
+              placeholder="## 题目描述&#10;&#10;输入两个整数 a, b，输出它们的和。&#10;&#10;### 输入格式&#10;一行两个整数。&#10;&#10;### 输出格式&#10;一个整数。"></textarea>
+          </label>
+
+          <details class="form__details">
+            <summary class="form__details-summary">高级选项：代码模板与测试用例</summary>
+
+            <label class="form__field" style="margin-top: 20px;">
+              <span class="form__label">代码模板 <span class="form__label-meta">C++ · 可选</span></span>
+              <textarea class="form__textarea form__textarea--code" name="template" rows="5"
+                placeholder="#include &lt;iostream&gt;&#10;using namespace std;&#10;int main() { ... }"></textarea>
+            </label>
+
+            <div class="form__field">
+              <span class="form__label">测试用例 <span class="form__label-meta">输入 · 预期输出 · 每行一组</span></span>
+              <div class="form__test-cases" id="newProblemCases">
+                <!-- 2 default rows -->
+                <div class="form__test-case" data-index="0">
+                  <div class="form__test-case-head">用例 #1</div>
+                  <div class="form__test-case-fields">
+                    <textarea class="form__textarea form__textarea--mini" name="input-0" rows="2" placeholder="stdin 输入"></textarea>
+                    <textarea class="form__textarea form__textarea--mini" name="expected-0" rows="2" placeholder="stdout 预期"></textarea>
+                  </div>
+                </div>
+                <div class="form__test-case" data-index="1">
+                  <div class="form__test-case-head">用例 #2</div>
+                  <div class="form__test-case-fields">
+                    <textarea class="form__textarea form__textarea--mini" name="input-1" rows="2" placeholder="stdin 输入"></textarea>
+                    <textarea class="form__textarea form__textarea--mini" name="expected-1" rows="2" placeholder="stdout 预期"></textarea>
+                  </div>
+                </div>
+              </div>
+              <button class="form__add-case" type="button" id="addCaseBtn">+ 添加用例</button>
+            </div>
+          </details>
+
+          <div class="form__actions">
+            <button class="btn btn--ghost" type="reset" id="resetFormBtn">清空</button>
+            <button class="btn btn--primary" type="submit" id="submitNewBtn">
+              <span class="btn__label">添加题目</span>
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- ───────── Existing-problems list (right column) ───────── -->
+      <section class="admin-list-section" aria-label="题目列表">
+        <header class="admin-list-header">
+          <h2 class="admin-list-header__title">题目列表</h2>
+          <p class="admin-list-header__count" id="problemCount">— 题</p>
+        </header>
+
+        <div class="problem-table-wrapper" id="tableWrapper" aria-busy="true" aria-live="polite">
+          <!-- Filled by JS: loading skeleton, error, empty, or table -->
+        </div>
+      </section>
+
+      </div><!-- /.admin-layout -->
+
+    </div>
+
+  </main>
+
+  <!-- ───────── Delete-confirm modal ───────── -->
+  <div class="modal" id="deleteModal" hidden role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle">
+    <div class="modal__backdrop" data-close="1"></div>
+    <div class="modal__panel">
+      <h2 class="modal__title" id="deleteModalTitle">确认删除？</h2>
+      <p class="modal__body" id="deleteModalBody">此操作不可恢复。</p>
+      <div class="modal__actions">
+        <button class="btn btn--ghost" type="button" data-close="1" id="cancelDeleteBtn">取消</button>
+        <button class="btn btn--primary btn--danger" type="button" id="confirmDeleteBtn">删除</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="/js/api.js?v=7"></script>
+  <script src="/js/admin.js?v=7"></script>
+</body>
+</html>

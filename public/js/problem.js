@@ -27,7 +27,8 @@
     difficulty: 'all',
     search:     '',
     loading:    false,
-    error:      null
+    error:      null,
+    role:       null      // 'admin' | 'user' | null — set by /api/me
   };
 
   /* ---------- Lucide-style SVG fragments (inline) ---------- */
@@ -326,13 +327,40 @@
     catch (_) {}
   }
 
+  function getStoredRole() {
+    try { return sessionStorage.getItem('oj_role') || null; }
+    catch (_) { return null; }
+  }
+
+  function setStoredRole(role) {
+    try { if (role) sessionStorage.setItem('oj_role', role); }
+    catch (_) {}
+  }
+
+  function clearStoredRole() {
+    try { sessionStorage.removeItem('oj_role'); }
+    catch (_) {}
+  }
+
   function renderUserMenu() {
     const menu = $('#userMenu');
     if (!menu) return;
     const name = getStoredUsername();
+
     if (name) {
+      const isAdmin = state.role === 'admin';
+      // Small shield icon prefix to the username — marks admin accounts.
+      const mark = isAdmin
+        ? '<svg class="admin-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" title="管理员"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>'
+        : '';
+      // Add a quick "进入管理后台" link in the user menu for admins —
+      // a secondary entry point in addition to the nav link.
+      const adminLink = isAdmin
+        ? '<a href="/admin.html" class="user-menu__link">管理后台</a>'
+        : '';
       menu.innerHTML = `
-        <span class="user-menu__greeting">你好，<span class="user-menu__name">${escapeHtml(name)}</span></span>
+        <span class="user-menu__greeting">${mark}你好，<span class="user-menu__name">${escapeHtml(name)}</span></span>
+        ${adminLink}
         <button class="user-menu__logout" type="button" data-action="logout">退出</button>`;
       menu.querySelector('[data-action="logout"]').addEventListener('click', handleLogout);
     } else {
@@ -350,13 +378,22 @@
     Api.me().then((res) => {
       if (res.ok && res.data && res.data.username) {
         const serverName = String(res.data.username);
+        const serverRole = String(res.data.role || 'user');
         const current = getStoredUsername();
         if (current !== serverName) {
           setStoredUsername(serverName);
+          setStoredRole(serverRole);
+          state.role = serverRole;
+          renderUserMenu();
+        } else if (getStoredRole() !== serverRole) {
+          setStoredRole(serverRole);
+          state.role = serverRole;
           renderUserMenu();
         }
       } else if (getStoredUsername()) {
         clearStoredUsername();
+        clearStoredRole();
+        state.role = null;
         renderUserMenu();
       }
     });
@@ -378,6 +415,8 @@
   function handleLogout() {
     Api.logout().finally(() => {
       clearStoredUsername();
+      clearStoredRole();
+      state.role = null;
       showToast('已退出登录');
       // Re-render menu in logged-out state, then redirect
       renderUserMenu();
@@ -388,6 +427,7 @@
   /* ---------- Init ---------- */
 
   function init() {
+    state.role = getStoredRole();
     renderUserMenu();
     bindFilter();
     bindSearch();

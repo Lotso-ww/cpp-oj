@@ -29,6 +29,7 @@
     username:  null,
     isAuthed:  false,
     authKnown: false,   // becomes true after /api/me (or logout) responds
+    role:      null,    // 'admin' | 'user' | null — drives the badge + admin link
     editor:    null,
     initialCode: '',
     submitting: false,
@@ -365,12 +366,26 @@
     catch (_) { return ''; }
   }
 
+  function getStoredRole() {
+    try { return sessionStorage.getItem('oj_role') || null; }
+    catch (_) { return null; }
+  }
+
   function renderUserMenu() {
     const menu = $('#userMenu');
     if (!menu) return;
+
     if (state.isAuthed) {
+      const isAdmin = state.role === 'admin';
+      const mark = isAdmin
+        ? '<svg class="admin-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" title="管理员"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>'
+        : '';
+      const adminLink = isAdmin
+        ? '<a href="/admin.html" class="user-menu__link">管理后台</a>'
+        : '';
       menu.innerHTML = `
-        <span class="user-menu__greeting">你好，<span class="user-menu__name">${escapeHtml(state.username)}</span></span>
+        <span class="user-menu__greeting">${mark}你好，<span class="user-menu__name">${escapeHtml(state.username)}</span></span>
+        ${adminLink}
         <button class="user-menu__logout" type="button" data-action="logout">退出</button>`;
       const btn = menu.querySelector('[data-action="logout"]');
       if (btn) btn.addEventListener('click', handleLogout);
@@ -479,8 +494,10 @@
   function handleLogout() {
     Api.logout().finally(() => {
       try { sessionStorage.removeItem('oj_username'); } catch (_) {}
+      try { sessionStorage.removeItem('oj_role'); } catch (_) {}
       state.username = null;
       state.isAuthed = false;
+      state.role = null;
       state.authKnown = true;  // server confirmed via the logout 200
       applyAuthState();
       clearResult();
@@ -504,17 +521,24 @@
       state.authKnown = true;
       if (res.ok && res.data && res.data.username) {
         const serverName = String(res.data.username);
+        const serverRole = String(res.data.role || 'user');
         if (!state.isAuthed || state.username !== serverName) {
           state.username = serverName;
           state.isAuthed = true;
           try { sessionStorage.setItem('oj_username', serverName); } catch (_) {}
+        }
+        if (state.role !== serverRole) {
+          state.role = serverRole;
+          try { sessionStorage.setItem('oj_role', serverRole); } catch (_) {}
         }
       } else {
         // Server says not authed — clear any stale local state
         if (state.isAuthed || getStoredUsername()) {
           state.username = null;
           state.isAuthed = false;
+          state.role = null;
           try { sessionStorage.removeItem('oj_username'); } catch (_) {}
+          try { sessionStorage.removeItem('oj_role'); } catch (_) {}
         }
       }
       applyAuthState();
