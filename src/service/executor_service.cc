@@ -17,6 +17,21 @@ using namespace LogModule;
 
 namespace oj {
 
+namespace {
+std::string normalizeOutput(std::string s) {
+    std::string out;
+    out.reserve(s.size());
+    for (size_t i = 0; i < s.size(); ++i) {
+        if (s[i] == '\r' && i + 1 < s.size() && s[i+1] == '\n') continue;
+        out.push_back(s[i]);
+    }
+    while (!out.empty() && (out.back() == '\r' || out.back() == '\n')) {
+        out.pop_back();
+    }
+    return out;
+}
+}
+
 ExecutorService& ExecutorService::getInstance() {
     static ExecutorService instance;
     return instance;
@@ -368,7 +383,11 @@ ExecutionResponse ExecutorService::compileAndRun(const std::string& sourceCode,
         }
 
         std::string expectedOutput = testCase.second;
-        if (runResp.stdout != expectedOutput) {
+        // An empty expected means "run only, don't compare" (LeetCode-style
+        // custom test cases). We still report a real AC if the program ran
+        // without errors; the run_handler can then re-label the status as
+        // "完成" since there's nothing to assert against.
+        if (!expectedOutput.empty() && normalizeOutput(runResp.stdout) != normalizeOutput(expectedOutput)) {
             finalResponse.result = RunResult::SUCCESS;
             finalResponse.errorMessage = "Wrong Answer";
             finalResponse.stdout = runResp.stdout;

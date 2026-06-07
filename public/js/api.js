@@ -70,8 +70,11 @@
     submitCode(problemId, code) {
       return request('POST', '/api/submit', { problemId, code });
     },
-    runCode(problemId, code, cases) {
-      return request('POST', '/api/run', { problemId, code, cases: cases || [] });
+    runCode(problemId, code, customCases) {
+      // `customCases` are LeetCode-style user-added test cases (input only).
+      // The server appends them to the problem's official DB cases — we
+      // don't need to send the DB cases ourselves.
+      return request('POST', '/api/run', { problemId, code, customCases: customCases || [] });
     },
     // ----- Admin endpoints (require admin role; 403 otherwise) -----
     createProblem(payload) {

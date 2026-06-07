@@ -28,11 +28,12 @@
     setFieldError(input, '');
   }
 
-  function showFormAlert(form, message) {
+  function showFormAlert(form, message, kind) {
     const alert = $('.alert', form);
     if (!alert) return;
     $('.alert__message', alert).textContent = message;
     alert.classList.add('is-visible');
+    alert.classList.toggle('alert--success', kind === 'success');
   }
 
   function hideFormAlert(form) {
@@ -210,7 +211,7 @@
       try {
         await options.onSubmit(values, {
           setLoading: (loading) => setLoading(submitBtn, loading),
-          showAlert: (message) => showFormAlert(form, message)
+          showAlert: (message, kind) => showFormAlert(form, message, kind)
         });
       } finally {
         setLoading(submitBtn, false);

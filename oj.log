@@ -1,23 +1,23 @@
-[2026-06-05 22:37:48] [INFO] [4520] [/home/lotso/project/cpp-oj/src/main.cc] [44] - OJ Server starting...
-[2026-06-05 22:37:48] [INFO] [4520] [/home/lotso/project/cpp-oj/src/main.cc] [45] - Database: localhost:3306
-[2026-06-05 22:37:48] [INFO] [4520] [/home/lotso/project/cpp-oj/src/main.cc] [46] - Server: 0.0.0.0:8080
-[2026-06-05 22:37:48] [INFO] [4520] [/home/lotso/project/cpp-oj/src/server/server.cc] [31] - Initializing connection pool...
-[2026-06-05 22:37:49] [INFO] [4520] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [31] - Connection pool initialized with 10 connections
-[2026-06-05 22:37:49] [INFO] [4520] [/home/lotso/project/cpp-oj/src/server/server.cc] [33] - Connection pool initialized
-[2026-06-05 22:37:49] [INFO] [4520] [/home/lotso/project/cpp-oj/src/server/server.cc] [35] - Setting up routes...
-[2026-06-05 22:37:49] [INFO] [4520] [/home/lotso/project/cpp-oj/src/server/server.cc] [37] - Routes setup complete
-[2026-06-05 22:37:49] [INFO] [4520] [/home/lotso/project/cpp-oj/src/server/server.cc] [41] - Starting server on 0.0.0.0:8080
-[2026-06-06 08:40:16] [WARNING] [4520] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [79] - Connection ping failed, recreating
-[2026-06-06 08:40:23] [WARNING] [4520] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [79] - Connection ping failed, recreating
-[2026-06-06 08:40:23] [WARNING] [4520] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [79] - Connection ping failed, recreating
-[2026-06-06 08:40:23] [WARNING] [4520] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [79] - Connection ping failed, recreating
-[2026-06-06 08:40:23] [WARNING] [4520] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [79] - Connection ping failed, recreating
-[2026-06-06 08:40:23] [WARNING] [4520] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [79] - Connection ping failed, recreating
-[2026-06-06 08:40:23] [WARNING] [4520] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [79] - Connection ping failed, recreating
-[2026-06-06 08:40:23] [WARNING] [4520] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [79] - Connection ping failed, recreating
-[2026-06-06 08:40:23] [WARNING] [4520] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [79] - Connection ping failed, recreating
-[2026-06-06 08:40:24] [WARNING] [4520] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [79] - Connection ping failed, recreating
-[2026-06-06 18:55:32] [INFO] [4520] [/home/lotso/project/cpp-oj/src/main.cc] [17] - Received signal 15, shutting down...
-[2026-06-06 18:55:32] [INFO] [4520] [/home/lotso/project/cpp-oj/src/server/server.cc] [50] - Server stopped
-[2026-06-06 18:55:32] [INFO] [4520] [/home/lotso/project/cpp-oj/src/main.cc] [56] - OJ Server stopped
-[2026-06-06 18:55:32] [INFO] [4520] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [119] - Connection pool closed
+[2026-06-06 22:49:03] [INFO] [37363] [/home/lotso/project/cpp-oj/src/main.cc] [44] - OJ Server starting...
+[2026-06-06 22:49:03] [INFO] [37363] [/home/lotso/project/cpp-oj/src/main.cc] [45] - Database: localhost:3306
+[2026-06-06 22:49:03] [INFO] [37363] [/home/lotso/project/cpp-oj/src/main.cc] [46] - Server: 0.0.0.0:8080
+[2026-06-06 22:49:03] [INFO] [37363] [/home/lotso/project/cpp-oj/src/server/server.cc] [31] - Initializing connection pool...
+[2026-06-06 22:49:03] [INFO] [37363] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [31] - Connection pool initialized with 10 connections
+[2026-06-06 22:49:03] [INFO] [37363] [/home/lotso/project/cpp-oj/src/server/server.cc] [33] - Connection pool initialized
+[2026-06-06 22:49:03] [INFO] [37363] [/home/lotso/project/cpp-oj/src/server/server.cc] [35] - Setting up routes...
+[2026-06-06 22:49:03] [INFO] [37363] [/home/lotso/project/cpp-oj/src/server/server.cc] [37] - Routes setup complete
+[2026-06-06 22:49:03] [INFO] [37363] [/home/lotso/project/cpp-oj/src/server/server.cc] [41] - Starting server on 0.0.0.0:8080
+[2026-06-07 18:33:20] [WARNING] [37363] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [79] - Connection ping failed, recreating
+[2026-06-07 18:33:20] [WARNING] [37363] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [79] - Connection ping failed, recreating
+[2026-06-07 18:33:31] [WARNING] [37363] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [79] - Connection ping failed, recreating
+[2026-06-07 18:33:32] [WARNING] [37363] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [79] - Connection ping failed, recreating
+[2026-06-07 18:33:32] [WARNING] [37363] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [79] - Connection ping failed, recreating
+[2026-06-07 18:33:41] [WARNING] [37363] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [79] - Connection ping failed, recreating
+[2026-06-07 18:33:41] [WARNING] [37363] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [79] - Connection ping failed, recreating
+[2026-06-07 18:34:34] [WARNING] [37363] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [79] - Connection ping failed, recreating
+[2026-06-07 18:34:34] [WARNING] [37363] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [79] - Connection ping failed, recreating
+[2026-06-07 18:35:36] [WARNING] [37363] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [79] - Connection ping failed, recreating
+[2026-06-07 18:37:52] [INFO] [37363] [/home/lotso/project/cpp-oj/src/main.cc] [17] - Received signal 15, shutting down...
+[2026-06-07 18:37:52] [INFO] [37363] [/home/lotso/project/cpp-oj/src/server/server.cc] [50] - Server stopped
+[2026-06-07 18:37:52] [INFO] [37363] [/home/lotso/project/cpp-oj/src/main.cc] [56] - OJ Server stopped
+[2026-06-07 18:37:52] [INFO] [37363] [/home/lotso/project/cpp-oj/src/db/connection_pool.cc] [119] - Connection pool closed

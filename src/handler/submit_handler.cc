@@ -76,24 +76,28 @@ void SubmitHandler::submitCode(const httplib::Request& req, httplib::Response& r
         result["compileOutput"] = response.compileOutput;
         result["error"] = response.errorMessage;
     } else {
-        switch (response.result) {
-            case RunResult::SUCCESS:
-                result["status"] = "AC";
-                break;
-            case RunResult::RUNTIME_ERROR:
-                result["status"] = "RE";
-                result["stderr"] = response.stderr;
-                break;
-            case RunResult::TIME_LIMIT_EXCEEDED:
-                result["status"] = "TLE";
-                break;
-            case RunResult::MEMORY_LIMIT_EXCEEDED:
-                result["status"] = "MLE";
-                break;
-            default:
-                result["status"] = "SYSTEM_ERROR";
-                result["error"] = response.errorMessage;
-                break;
+        if (response.errorMessage == "Wrong Answer") {
+            result["status"] = "WA";
+        } else {
+            switch (response.result) {
+                case RunResult::SUCCESS:
+                    result["status"] = "AC";
+                    break;
+                case RunResult::RUNTIME_ERROR:
+                    result["status"] = "RE";
+                    result["stderr"] = response.stderr;
+                    break;
+                case RunResult::TIME_LIMIT_EXCEEDED:
+                    result["status"] = "TLE";
+                    break;
+                case RunResult::MEMORY_LIMIT_EXCEEDED:
+                    result["status"] = "MLE";
+                    break;
+                default:
+                    result["status"] = "SYSTEM_ERROR";
+                    result["error"] = response.errorMessage;
+                    break;
+            }
         }
         result["stdout"] = response.stdout;
         result["executionTimeMs"] = response.executionTimeMs;

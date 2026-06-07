@@ -8,6 +8,16 @@
 
 namespace oj {
 
+// Internal record representing a single case the executor should run, with
+// the metadata we need to label the result. `isCustom` distinguishes a
+// LeetCode-style user-added case (no expected output) from an official
+// problem case (compared against expected).
+struct RunCase {
+    std::string input;
+    std::string expected;   // empty for custom cases
+    bool        isCustom;
+};
+
 void RunHandler::runCode(const httplib::Request& req, httplib::Response& res) {
     Json::Value json;
     Json::CharReaderBuilder builder;
@@ -40,11 +50,16 @@ void RunHandler::runCode(const httplib::Request& req, httplib::Response& res) {
         return;
     }
 
-    // Resolve the test cases to run:
-    //   - If the request includes a "cases" array, use those (user-edited
-    //     cases from the editor, e.g. added/removed/modified by the user).
-    //   - Otherwise, fall back to the problem's default test cases from the DB.
-    std::vector<std::pair<std::string, std::string>> cases;
+    // Resolve the test cases to run. There are three shapes of request:
+    //   1. `cases` (legacy): user-provided test cases with expected output.
+    //      These REPLACE the DB cases — used by the old "edit-then-run" UI
+    //      and by the integration tests.
+    //   2. `customCases` (new): LeetCode-style user-added test cases with
+    //      input only (no expected). These are APPENDED to the problem's
+    //      official DB cases, so the user gets a unified per-case result
+    //      covering both authoritative and exploratory cases.
+    //   3. Neither: just run the problem's DB cases.
+    std::vector<RunCase> cases;
     bool casesFromRequest = false;
 
     if (json.isMember("cases") && json["cases"].isArray()) {
@@ -52,7 +67,7 @@ void RunHandler::runCode(const httplib::Request& req, httplib::Response& res) {
         for (const auto& c : json["cases"]) {
             std::string input    = c.isMember("input")    ? c["input"].asString()    : "";
             std::string expected = c.isMember("expected") ? c["expected"].asString() : "";
-            cases.emplace_back(input, expected);
+            cases.push_back({input, expected, /*isCustom=*/false});
         }
     } else {
         Problem* problem = Problem::findById(problemId);
@@ -65,9 +80,19 @@ void RunHandler::runCode(const httplib::Request& req, httplib::Response& res) {
         }
         const std::vector<TestCase>& testCases = problem->getTestCases();
         for (const auto& tc : testCases) {
-            cases.emplace_back(tc.getInput(), tc.getExpected());
+            cases.push_back({tc.getInput(), tc.getExpected(), /*isCustom=*/false});
         }
         delete problem;
+
+        // Append any user-added custom cases (LeetCode-style).
+        if (json.isMember("customCases") && json["customCases"].isArray()) {
+            for (const auto& c : json["customCases"]) {
+                std::string input = c.isMember("input") ? c["input"].asString() : "";
+                // Drop empty rows — the user hasn't filled them in yet.
+                if (input.empty()) continue;
+                cases.push_back({input, /*expected=*/"", /*isCustom=*/true});
+            }
+        }
     }
 
     if (cases.empty()) {
@@ -87,8 +112,9 @@ void RunHandler::runCode(const httplib::Request& req, httplib::Response& res) {
     // internal tool; if it becomes a bottleneck, we can refactor the
     // executor to return a vector of per-case results in one call).
     Json::Value casesArr(Json::arrayValue);
-    int passed = 0;
-    int total = 0;
+    int passed = 0;     // only counts DB cases (custom cases can't "pass")
+    int total = 0;      // total cases run
+    int dbTotal = 0;    // number of DB cases
     bool compileOk = true;
     std::string compileOut;
     bool stoppedEarly = false;
@@ -96,18 +122,23 @@ void RunHandler::runCode(const httplib::Request& req, httplib::Response& res) {
     for (size_t i = 0; i < cases.size(); ++i) {
         if (stoppedEarly) break;
 
-        const std::string& input    = cases[i].first;
-        const std::string& expected = cases[i].second;
+        const RunCase& c = cases[i];
+        if (!c.isCustom) dbTotal++;
 
         std::vector<std::pair<std::string, std::string>> singleCase = {
-            {input, expected}
+            {c.input, c.expected}
         };
         auto response = ExecutorService::getInstance().compileAndRun(code, singleCase);
 
         Json::Value caseObj;
         caseObj["position"]        = (int)i;
-        caseObj["input"]           = input;
-        caseObj["expected"]        = expected;
+        caseObj["source"]          = c.isCustom ? "custom" : "db";
+        caseObj["input"]           = c.input;
+        // Custom cases have no expected — omit the field entirely so the
+        // client can render them with no "expected" row at all.
+        if (!c.isCustom) {
+            caseObj["expected"] = c.expected;
+        }
         caseObj["actual"]          = response.stdout;
         caseObj["stderr"]          = response.stderr;
         caseObj["executionTimeMs"] = (int)response.executionTimeMs;
@@ -134,21 +165,28 @@ void RunHandler::runCode(const httplib::Request& req, httplib::Response& res) {
             // still returning RunResult::SUCCESS. (See executor_service.cc.)
             status = "WA";
         } else {
-            status = "AC";
-            passed++;
+            // For DB cases this is a real AC (passed comparison).
+            // For custom cases this is just "the code ran without errors" —
+            // there's nothing to assert against, so we label it differently
+            // so the client can render it as 完成 / OK.
+            status = c.isCustom ? "OK" : "AC";
+            if (!c.isCustom) passed++;
         }
         caseObj["status"] = status;
         casesArr.append(caseObj);
         total++;
     }
 
+    // "passed" and "allPassed" only consider DB cases — custom cases have
+    // no expected output to compare against, so they can't "pass" or "fail"
+    // in the AC/WA sense.
     Json::Value result;
     result["compileSuccess"] = compileOk;
     result["compileOutput"]  = compileOut;
     result["cases"]          = casesArr;
     result["passed"]         = passed;
-    result["total"]          = total;
-    result["allPassed"]      = (passed == total);
+    result["total"]          = dbTotal;
+    result["allPassed"]      = (dbTotal > 0 && passed == dbTotal);
 
     res.status = 200;
     res.set_content(Json::FastWriter().write(result), "application/json");

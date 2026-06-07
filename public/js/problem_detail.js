@@ -33,10 +33,15 @@
     editor:    null,
     initialCode: '',
     submitting: false,
-    // User-editable test cases for "运行测试" (LeetCode-style).
-    // Initially populated from the problem's DB test cases; the user can
-    // freely add / edit / remove via the editor. "提交" still uses the
-    // DB test cases (it's the official submission, judged against all).
+    // Read-only test cases loaded from the problem's DB. These are the
+    // authoritative cases — "提交" judges against all of them. The
+    // "运行测试" feature compares the user's code against them too, so
+    // the user can see exactly which official cases are passing.
+    problemTestCases: [],
+    // User-added test cases (LeetCode-style). These have input only —
+    // there's no "expected output" to write, because the user just wants
+    // to inspect the actual output for some input they care about. They
+    // are appended to the problem's test cases when running.
     customTestCases: []
   };
 
@@ -406,55 +411,109 @@
     hint.hidden = state.isAuthed || !state.authKnown;
   }
 
-  /* ---------- Test case editor (LeetCode-style "Run Code" inputs) ---------- */
+  /* ---------- Test case editor (LeetCode-style "Run Code" inputs) ----------
+   *
+   * Layout:
+   *   - "题目用例" (problemTestCases) — read-only display of input/expected.
+   *     Loaded from the problem's DB. The user doesn't write these, the
+   *     "运行测试" feature judges the code against them automatically.
+   *   - "自定义用例" (customTestCases) — input only, the user can add
+   *     as many as they want. "运行测试" runs them and shows the actual
+   *     output for each (no comparison — there's no expected).
+   *
+   * The two groups have different row markup (.test-case-row vs.
+   * .test-case-row--readonly) so the editor's event delegation can
+   * distinguish them, and so the visual style signals which is editable.
+   */
 
-  // Render the test case editor from state.customTestCases. Each row has
-  // a case number, a delete button, and editable input/expected textareas.
+  // Render the test case editor. Two visually distinct sections: a
+  // read-only display of the problem's official test cases, and an
+  // editable list of the user's custom test cases.
   function renderTestCases() {
     const list = $('#testCaseList');
     if (!list) return;
 
-    const cases = state.customTestCases;
-    if (cases.length === 0) {
-      list.innerHTML = '<p class="test-case-editor__empty">还没有测试用例。点击「+ 添加用例」创建，或从左边题目内容里复制示例输入。</p>';
+    const dbCases    = state.problemTestCases;
+    const customCases = state.customTestCases;
+
+    // Empty state — no DB cases AND no custom cases
+    if (dbCases.length === 0 && customCases.length === 0) {
+      list.innerHTML = '<p class="test-case-editor__empty">还没有测试用例。点击「+ 添加用例」创建自定义用例来运行代码。</p>';
       return;
     }
 
     let html = '';
-    cases.forEach((c, i) => {
-      html += `<div class="test-case-row" data-index="${i}">`;
-      html += '<div class="test-case-row__head">';
-      html += `<span class="test-case-row__num">用例 #${i + 1}</span>`;
-      html += '<button class="test-case-row__remove" type="button" data-action="remove" aria-label="删除此用例">删除</button>';
+
+    // Section A: problem's official test cases (read-only)
+    if (dbCases.length > 0) {
+      html += '<div class="test-case-section" data-section="db">';
+      html += '<h4 class="test-case-section__title">题目用例 <span class="test-case-section__count">' + dbCases.length + '</span></h4>';
+      dbCases.forEach((c, i) => {
+        html += '<div class="test-case-row test-case-row--readonly" data-source="db" data-index="' + i + '">';
+        html += '<div class="test-case-row__head">';
+        html += '<span class="test-case-row__num">用例 #' + (i + 1) + '</span>';
+        html += '<span class="test-case-row__badge">官方</span>';
+        html += '</div>';
+        html += '<div class="test-case-row__fields">';
+        html += '<div class="test-case-row__field">';
+        html += '<span class="test-case-row__label">输入</span>';
+        html += '<pre class="test-case-row__readonly">' + escapeHtml(c.input || '') + '</pre>';
+        html += '</div>';
+        html += '<div class="test-case-row__field">';
+        html += '<span class="test-case-row__label">预期输出</span>';
+        html += '<pre class="test-case-row__readonly">' + escapeHtml(c.expected || '') + '</pre>';
+        html += '</div>';
+        html += '</div>';
+        html += '</div>';
+      });
       html += '</div>';
-      html += '<div class="test-case-row__fields">';
-      html += '<label class="test-case-row__field">';
-      html += '<span class="test-case-row__label">输入</span>';
-      html += `<textarea class="test-case-row__textarea" data-field="input" rows="2" placeholder="stdin 输入">${escapeHtml(c.input || '')}</textarea>`;
-      html += '</label>';
-      html += '<label class="test-case-row__field">';
-      html += '<span class="test-case-row__label">预期输出</span>';
-      html += `<textarea class="test-case-row__textarea" data-field="expected" rows="2" placeholder="stdout 预期">${escapeHtml(c.expected || '')}</textarea>`;
-      html += '</label>';
+    }
+
+    // Section B: user-added custom test cases (editable, input only)
+    if (customCases.length > 0) {
+      html += '<div class="test-case-section" data-section="custom">';
+      html += '<h4 class="test-case-section__title">自定义用例 <span class="test-case-section__count">' + customCases.length + '</span></h4>';
+      customCases.forEach((c, i) => {
+        html += '<div class="test-case-row" data-source="custom" data-index="' + i + '">';
+        html += '<div class="test-case-row__head">';
+        html += '<span class="test-case-row__num">用例 #' + (dbCases.length + i + 1) + '</span>';
+        html += '<button class="test-case-row__remove" type="button" data-action="remove" aria-label="删除此用例">删除</button>';
+        html += '</div>';
+        html += '<div class="test-case-row__fields">';
+        html += '<label class="test-case-row__field">';
+        html += '<span class="test-case-row__label">输入</span>';
+        html += '<textarea class="test-case-row__textarea" data-field="input" rows="2" placeholder="stdin 输入">' + escapeHtml(c.input || '') + '</textarea>';
+        html += '</label>';
+        html += '</div>';
+        html += '</div>';
+      });
       html += '</div>';
-      html += '</div>';
-    });
+    }
+
     list.innerHTML = html;
   }
 
-  // Wire up add / remove / edit (event delegation on the list).
+  // Wire up add / remove / edit (event delegation on the list). Only the
+  // custom section is editable; the problem cases are read-only and the
+  // remove button doesn't appear on those rows.
   function bindTestCaseEditor() {
     const addBtn = $('#addTestCaseBtn');
     if (addBtn) {
       addBtn.addEventListener('click', () => {
-        state.customTestCases.push({ input: '', expected: '' });
+        state.customTestCases.push({ input: '' });
         renderTestCases();
         // Focus the new case's input field for fast entry
-        const rows = $$('#testCaseList .test-case-row');
-        const last = rows[rows.length - 1];
-        if (last) {
-          const ta = last.querySelector('textarea[data-field="input"]');
-          if (ta) ta.focus();
+        const list = $('#testCaseList');
+        if (list) {
+          const customSection = list.querySelector('.test-case-section[data-section="custom"]');
+          if (customSection) {
+            const rows = customSection.querySelectorAll('.test-case-row');
+            const last = rows[rows.length - 1];
+            if (last) {
+              const ta = last.querySelector('textarea[data-field="input"]');
+              if (ta) ta.focus();
+            }
+          }
         }
       });
     }
@@ -462,12 +521,15 @@
     const list = $('#testCaseList');
     if (!list) return;
 
-    // Edit (input event on textareas)
+    // Edit (input event on textareas in the custom section only)
     list.addEventListener('input', (e) => {
       const ta = e.target.closest('textarea[data-field]');
       if (!ta) return;
       const row = ta.closest('.test-case-row');
       if (!row) return;
+      // Defensive: the read-only rows don't contain textareas, but check
+      // anyway in case the markup drifts.
+      if (row.dataset.source !== 'custom') return;
       const index = parseInt(row.dataset.index, 10);
       const field = ta.dataset.field;
       if (state.customTestCases[index]) {
@@ -475,18 +537,16 @@
       }
     });
 
-    // Remove (click event delegation)
+    // Remove (click event delegation). Only custom rows have a remove
+    // button; problem cases are read-only.
     list.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-action="remove"]');
       if (!btn) return;
       const row = btn.closest('.test-case-row');
       if (!row) return;
+      if (row.dataset.source !== 'custom') return;
       const index = parseInt(row.dataset.index, 10);
       state.customTestCases.splice(index, 1);
-      // Keep at least one row so the user has something to edit
-      if (state.customTestCases.length === 0) {
-        state.customTestCases.push({ input: '', expected: '' });
-      }
       renderTestCases();
     });
   }
@@ -655,26 +715,64 @@
   }
 
   // Per-case test results (LeetCode-style "Run Code" output).
-  // Renders each test case with: index, status badge, input, expected, actual, stderr.
+  // Renders each test case with: index, status badge, input, expected (DB
+  // cases only), actual, stderr. Custom cases have no `expected` field —
+  // we hide that row entirely and label the status differently.
   function testCasesHtml(data) {
     const cases = (data && data.cases) || [];
     if (cases.length === 0) {
       return networkHtml({ message: '该题暂无测试用例' });
     }
 
+    // `passed` and `total` from the server only count DB cases (custom
+    // cases can't pass/fail — there's no expected to compare against).
+    // For display, we still need to know how many cases are custom so we
+    // can build a meaningful subtitle.
+    const dbCases    = cases.filter(c => c.source !== 'custom');
+    const customCount = cases.length - dbCases.length;
     const passed = (typeof data.passed === 'number') ? data.passed
-                 : cases.filter(c => c.status === 'AC').length;
-    const total  = (typeof data.total  === 'number') ? data.total  : cases.length;
+                 : dbCases.filter(c => c.status === 'AC').length;
+    const total  = (typeof data.total  === 'number') ? data.total  : dbCases.length;
     const allPass = !!data.allPassed;
     const compileOk = data.compileSuccess !== false;
 
-    // Top status bar: badge shows pass count; color reflects overall outcome.
-    const badgeClass = allPass ? 'ac' : (compileOk ? 'wa' : 'ce');
-    const badgeText  = compileOk ? `${passed}/${total}` : 'CE';
-    const title      = compileOk ? '运行完成' : '编译错误';
-    const subtitle   = !compileOk
-      ? '代码无法编译'
-      : (allPass ? '全部用例通过' : `${passed} 个通过，${total - passed} 个失败`);
+    // Top status bar. Three states:
+    //   - compile error → "CE" badge
+    //   - all DB cases pass → "AC" badge
+    //   - some DB cases fail → "WA" badge with pass/fail count
+    // Custom cases don't affect the badge (no expected to assert).
+    let badgeClass, badgeText, title, subtitle;
+    if (!compileOk) {
+      badgeClass = 'ce';
+      badgeText  = 'CE';
+      title      = '编译错误';
+      subtitle   = '代码无法编译';
+    } else if (total === 0 && customCount === 0) {
+      // No cases at all (shouldn't happen — guarded above — but be safe)
+      badgeClass = 'ac';
+      badgeText  = 'OK';
+      title      = '运行完成';
+      subtitle   = '';
+    } else if (total === 0) {
+      // No official DB cases, only custom — no pass/fail to report, just
+      // the count of custom cases that ran.
+      badgeClass = 'ac';
+      badgeText  = `${customCount}`;
+      title      = '运行完成';
+      subtitle   = `已运行 ${customCount} 个自定义用例`;
+    } else if (allPass) {
+      badgeClass = 'ac';
+      badgeText  = `${passed}/${total}`;
+      title      = '运行完成';
+      subtitle   = customCount > 0
+        ? `全部 ${total} 个官方用例通过，另运行 ${customCount} 个自定义用例`
+        : '全部用例通过';
+    } else {
+      badgeClass = 'wa';
+      badgeText  = `${passed}/${total}`;
+      title      = '运行完成';
+      subtitle   = `${passed} 个通过，${total - passed} 个失败`;
+    }
 
     let html = `<div class="result-card result-card--test result-card--${badgeClass}" role="status">`;
     html += '<div class="result-card__status">';
@@ -696,17 +794,26 @@
     html += '<div class="test-cases">';
     cases.forEach((c) => {
       const cStatus = (c.status || 'AC').toLowerCase();
+      const isCustom = c.source === 'custom';
+      // Custom cases with no expected get a friendlier "完成" label
+      // instead of the English "OK" we get from the server.
+      const statusText = (isCustom && c.status === 'OK') ? '完成' : (c.status || '?');
       html += `<div class="test-case test-case--${escapeHtml(cStatus)}">`;
       html += '<div class="test-case__header">';
       html += `<span class="test-case__num">#${(c.position || 0) + 1}</span>`;
-      html += `<span class="test-case__status">${escapeHtml(c.status || '?')}</span>`;
+      // Source badge so the user can tell official vs custom at a glance.
+      html += `<span class="test-case__source">${isCustom ? '自定义' : '官方'}</span>`;
+      html += `<span class="test-case__status">${escapeHtml(statusText)}</span>`;
       if (typeof c.executionTimeMs === 'number') {
         html += `<span class="test-case__time">${c.executionTimeMs} ms</span>`;
       }
       html += '</div>';
       html += '<div class="test-case__body">';
       html += `<div class="test-case__row"><span class="test-case__label">输入</span><pre class="test-case__value">${escapeHtml(c.input || '')}</pre></div>`;
-      html += `<div class="test-case__row"><span class="test-case__label">预期</span><pre class="test-case__value">${escapeHtml(c.expected || '')}</pre></div>`;
+      // Custom cases have no expected output — skip the row entirely.
+      if (!isCustom && 'expected' in c) {
+        html += `<div class="test-case__row"><span class="test-case__label">预期</span><pre class="test-case__value">${escapeHtml(c.expected || '')}</pre></div>`;
+      }
       if (c.actual) {
         html += `<div class="test-case__row"><span class="test-case__label">实际</span><pre class="test-case__value">${escapeHtml(c.actual)}</pre></div>`;
       }
@@ -834,18 +941,20 @@
           remeasureEditor(state.editor);
         }
 
-        // Populate the user-editable test cases from the problem's DB
-        // test cases. The user can freely edit / add / remove these — they
-        // are only used by "运行测试", not by "提交".
+        // Populate the test-case editor. The problem's DB test cases go
+        // into the read-only `problemTestCases` (they are the authoritative
+        // set — the server already knows about them, so we don't need to
+        // re-send them on "运行测试"). The user starts with no custom
+        // cases; they can add some via "+ 添加用例".
         const dbCases = (state.problem.testCases || []);
-        if (dbCases.length > 0) {
-          state.customTestCases = dbCases.map(tc => ({
-            input:    tc.input    || '',
-            expected: tc.expected || ''
-          }));
-        } else if (state.customTestCases.length === 0) {
-          // No DB cases — start with one empty row so the editor isn't empty
-          state.customTestCases = [{ input: '', expected: '' }];
+        state.problemTestCases = dbCases.map(tc => ({
+          input:    tc.input    || '',
+          expected: tc.expected || ''
+        }));
+        if (state.customTestCases.length === 0 && dbCases.length === 0) {
+          // No DB cases AND no custom cases — start with one empty custom
+          // row so the user has something to type into.
+          state.customTestCases = [{ input: '' }];
         }
         renderTestCases();
       } catch (err) {
@@ -971,23 +1080,19 @@
     }
     showResult({ kind: 'pending' });
 
-    // Send the user-edited test cases (from the editor below). If the list
-    // is empty, the backend will tell us — but typically the page initializes
-    // it from the problem's DB test cases, so this should rarely be empty.
-    const cases = state.customTestCases
-      .map(c => ({ input: c.input || '', expected: c.expected || '' }))
-      .filter(c => c.input.length > 0 || c.expected.length > 0);
+    // Collect the user-added custom cases (input only). The server already
+    // knows about the problem's official test cases — it'll merge them
+    // together and tag each result with `source: "db" | "custom"`.
+    // We drop empty rows so the user can leave the "add case" placeholder
+    // unfilled without it counting as a test case.
+    const customCases = state.customTestCases
+      .map(c => ({ input: c.input || '' }))
+      .filter(c => c.input.length > 0);
 
-    if (cases.length === 0) {
-      if (runTestBtn) {
-        runTestBtn.classList.remove('is-loading');
-        runTestBtn.disabled = false;
-      }
-      showResult({ kind: 'network', message: '请先在下面添加至少一个测试用例' });
-      return;
-    }
+    // We always run, even if the user has no custom cases — the official
+    // DB cases will still be executed and compared.
 
-    Api.runCode(state.problemId, code, cases).then((res) => {
+    Api.runCode(state.problemId, code, customCases).then((res) => {
       if (runTestBtn) {
         runTestBtn.classList.remove('is-loading');
         runTestBtn.disabled = false;

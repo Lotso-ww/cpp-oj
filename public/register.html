@@ -47,10 +47,13 @@
         <form class="auth-shell__form" id="registerForm" novalidate aria-describedby="registerAlert">
 
           <div class="alert" id="registerAlert" role="alert" aria-live="polite">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <svg class="alert__icon alert__icon--error" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="8" x2="12" y2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <svg class="alert__icon alert__icon--success" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12" />
             </svg>
             <span class="alert__message"></span>
           </div>
@@ -192,7 +195,7 @@
         onSubmit: function (values, helpers) {
           Api.register(values.username.trim(), values.password).then(function (res) {
             if (res.status === 201 || res.ok) {
-              helpers.showAlert('账号已创建，正在跳转…');
+              helpers.showAlert('账号已创建，正在跳转…', 'success');
               setTimeout(function () {
                 window.location.href = '/login.html';
               }, 700);
