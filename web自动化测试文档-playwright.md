@@ -12,6 +12,7 @@
 > 1. 本机未全局安装 playwright-cli，全部命令以 `npx --no-install playwright-cli` 前缀运行，避免触发 `npm install` 卡顿。
 > 2. 浏览器启动后**不要轻易 `close`**，跨用例导航请优先用 `npx playwright-cli goto <url>` 复用同一会话。
 > 3. 每个 playwright-cli 命令前手动 `Start-Sleep -Seconds 1` 等待，便于肉眼观察页面变化。
+> 4. **所有用例执行完毕后，务必保持浏览器窗口处于打开状态，不要关闭浏览器**。关闭窗口会丢失当前登录态、未提交的编辑器内容、未上传的截图缓存等，方便后续手动复核或补跑用例。
 
 ---
 
@@ -645,9 +646,16 @@ npx --no-install playwright-cli open --headed http://124.222.15.175:8080/registe
 npx --no-install playwright-cli open --headed
 npx --no-install playwright-cli goto http://124.222.15.175:8080/login.html
 
-# 关闭浏览器
+# 关闭浏览器(仅在确认所有用例已通过、复核截图完成、且无需再补跑时才执行)
 npx --no-install playwright-cli close
 ```
+
+> **⚠️ 默认不要关闭浏览器**：所有测试用例执行完毕后，浏览器窗口**必须保持打开**。
+> 关闭窗口将导致：
+> - 当前 Session Cookie、登录态、sessionStorage 全部丢失，后续手动补跑 / 验证需重新登录；
+> - 编辑器内未提交的代码、临时添加的测试用例、浏览器历史栈都被清空；
+> - 调试时无法用 DevTools 现场检查最后一次操作的 DOM / 网络面板状态。
+> 推荐做法：所有用例跑完后停留在最后一个用例结束页（如 `/problem_list.html`），方便人工目视复核。
 
 ### 3.2 页面交互
 

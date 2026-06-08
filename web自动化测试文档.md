@@ -19,6 +19,14 @@
 | 存储 | MySQL 8.0 (`oj_system`) |
 | 评测沙盒 | `fork + exec`，超时上限 5s |
 
+> **执行约定**：**所有测试用例执行完毕后，浏览器窗口必须保持打开，不要调用 `browser.close()` / `playwright-cli close` 关闭窗口**。保持窗口开启便于：
+> 1. 人工复核最后一条用例的页面状态（Toast、列表、结果卡片等）；
+> 2. 在 DevTools 中直接检查 DOM、CSS、Network 请求，定位失败用例的根因；
+> 3. 保留当前 Session Cookie、登录态、sessionStorage（如编辑器草稿、临时测试用例），方便后续补跑 / 重试；
+> 4. 已抓取的截图、快照（`.playwright-cli/page-*.yml`、`.png`）继续可被引用。
+>
+> 关闭时机的建议：**仅在**测试结果已全部归档、截图已落到证据目录、用例不需要再补跑时，再执行 `playwright-cli close` 释放资源。
+
 ### 1.2 全局变量与选择器约定
 
 | 名称 | 含义 / 取值 | 用途 |
