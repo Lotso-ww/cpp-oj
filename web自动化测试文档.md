@@ -34,7 +34,97 @@
 | 结果卡片选择器 | `.result-card` | 题目详情页评测结果区 |
 | 难度筛选 | `.filter__chip[data-difficulty="..."]` | `all` / `Easy` / `Medium` / `Hard` |
 
-> **使用说明**：测试脚本在每次启动新用例前应执行 `page.context().clearCookies()` 清理登录态；注册场景应使用 `testuser_{unix_timestamp}` 形式动态生成用户名避免冲突。
+### 1.3 幂等性约定（确保用例任意顺序、任意次数重跑都通过）
+
+> 本节为新增规范，目的是让**任意测试套件、任意执行顺序、任意重跑次数**下，所有用例都能稳定通过。任何在用例体内直接写入「admin」「id=1」「两数之和」等硬编码且会在数据库留下副作用的字段，都必须按本节约定改造为**动态变量**或**setup/teardown 钩子**。
+
+#### 1.3.1 beforeEach 钩子（每个用例执行前必须执行）
+
+```javascript
+// 1. 清 Cookie：避免前序用例的 admin / 普通用户 session 残留
+await context.clearCookies();
+
+// 2. 清 sessionStorage：清空 oj_username / oj_role / oj_editor_code_{id} / 自定义测试用例等
+await page.evaluate(() => sessionStorage.clear());
+
+// 3. 注入当前秒级时间戳，供 {unix_timestamp} 占位符使用
+const TS = Math.floor(Date.now() / 1000);
+```
+
+> **重要**：测试步骤中出现的 `{unix_timestamp}` **必须**由脚本运行时替换为真实的秒级时间戳，**禁止**作为字面量提交，否则第二次执行会因为用户名/标题冲突而失败。
+
+#### 1.3.2 globalSetup 钩子（套件启动执行一次）
+
+```javascript
+// 1. 确保管理员可用（admin / admin123 已由 init.sql 创建）
+await ensureAdmin(ADMIN_USER, ADMIN_PASS);
+
+// 2. 注册并登录一个普通用户 testuser_{TS}（供 TC-049 / TC-054 / TC-055 使用）
+const TEST_NORMAL_USER = `testuser_${Math.floor(Date.now() / 1000)}`;
+await registerAndLogin(TEST_NORMAL_USER, 'Test1234');
+process.env.TEST_NORMAL_USER = TEST_NORMAL_USER;
+
+// 3. 动态获取首个 Easy 题目 id（供 TC-010 / TC-020~034 使用）
+const problems = await fetchProblems();
+let easyProblem = problems.find(p => p.difficulty === 'Easy');
+if (!easyProblem) {
+  // 题库中无 Easy 题时，种子化一道「两数之和」并重取
+  const newId = await seedTwoSumProblem();
+  easyProblem = (await fetchProblems()).find(p => p.id === newId);
+}
+process.env.TEST_PROBLEM_ID = String(easyProblem.id);
+
+// 4. 取该题标题前 2 字作为搜索关键字（供 TC-018 使用）
+process.env.TEST_DIFF_KEYWORD = easyProblem.title.slice(0, 2);
+
+// 5. 创建一道临时题（供 TC-041~044 删除类用例使用）
+const tempTitle = `delete_target_${Math.floor(Date.now() / 1000)}`;
+const tempId = await adminCreateProblem({ title: tempTitle, difficulty: 'Easy', content: 'tmp' });
+process.env.TEST_TEMP_PROBLEM_ID = String(tempId);
+```
+
+#### 1.3.3 globalTeardown 钩子（套件结束执行一次）
+
+```javascript
+// 1. 兜底删除 TC-036 / TC-040 / TC-046 期间动态创建的题目（标题带 unix_timestamp 后缀）
+const allProblems = await fetchProblems();
+for (const p of allProblems) {
+  if (/_(1\d{9,})$/.test(p.title)) {
+    await deleteProblem(p.id);
+  }
+}
+
+// 2. 兜底删除 TC-041~044 测试期间创建的临时题（即使 confirm 测试中断也保证清理）
+if (process.env.TEST_TEMP_PROBLEM_ID) {
+  await deleteProblem(Number(process.env.TEST_TEMP_PROBLEM_ID));
+}
+```
+
+#### 1.3.4 动态变量约定表
+
+| 变量名 | 含义 | 注入时机 | 消费用例 |
+|--------|------|----------|----------|
+| `TEST_PROBLEM_ID` | 首个 Easy 题的 id | `globalSetup` | TC-010, TC-020~034 |
+| `TEST_DIFF_KEYWORD` | 该 Easy 题标题前 2 字符 | `globalSetup` | TC-018 |
+| `TEST_NORMAL_USER` | 普通用户名（带时间戳） | `globalSetup` | TC-049, TC-054, TC-055 |
+| `TEST_TEMP_PROBLEM_ID` | 临时删除目标题 id | `globalSetup` | TC-041, TC-042, TC-043, TC-044 |
+| `TS` | 当前秒级 unix 时间戳 | `beforeEach` | TC-001, TC-036, TC-040, TC-046 |
+
+> **使用方式**：测试步骤中 `${TEST_PROBLEM_ID}`、`${TS}` 等占位符由 Playwright 的 `test.beforeEach` / `globalSetup` 通过 `process.env` 注入，运行时替换。
+
+#### 1.3.5 题库可重置保护（TC-045 专属）
+
+`TC-045 题库为空` **必须**作为**独立 suite** 运行，不得与其他 suite 混跑：
+
+- **suite `beforeAll`**：备份当前 `problems` / `test_cases` 表，并 `TRUNCATE TABLE test_cases; TRUNCATE TABLE problems;`（**保留 `users` 表**，避免影响其他测试账号）。
+- **suite `afterAll`**：从 `database/init.sql` 种子数据重新导入 `problems` / `test_cases`，还原测试环境。
+- **用例体内保护**：
+  ```javascript
+  test('TC-045 题库为空', async () => {
+    test.skip((await getProblemCount()) > 0, '题库非空，跳过；该用例须在独立 suite 跑');
+    // ...
+  });
+  ```
 
 ---
 
@@ -163,9 +253,9 @@
 | **用例ID** | TC-010 |
 | **用例名称** | 登录带 return 参数回到原页 |
 | **测试目的** | 验证深链场景下登录后回跳 |
-| **前置条件** | 无 |
-| **测试步骤** | 1. 未登录状态访问 `/problem.html?id=1`<br>2. 页面跳转到 `/login.html?return=%2Fproblem.html%3Fid%3D1`<br>3. 输入 `admin` / `admin123` 点击登录 |
-| **预期结果** | 1. 登录成功后跳回 `/problem.html?id=1`<br>2. `sessionStorage.oj_username="admin"` |
+| **前置条件** | `globalSetup` 已将首个 Easy 题 id 写入 `${TEST_PROBLEM_ID}` |
+| **测试步骤** | 1. 未登录状态访问 `/problem.html?id=${TEST_PROBLEM_ID}`<br>2. 页面跳转到 `/login.html?return=%2Fproblem.html%3Fid%3D${TEST_PROBLEM_ID}`<br>3. 输入 `admin` / `admin123` 点击登录 |
+| **预期结果** | 1. 登录成功后跳回 `/problem.html?id=${TEST_PROBLEM_ID}`<br>2. `sessionStorage.oj_username="admin"` |
 
 #### TC-011: 已登录访问登录页自动跳过
 
@@ -255,8 +345,8 @@
 | **用例ID** | TC-018 |
 | **用例名称** | 按标题关键字搜索 |
 | **测试目的** | 验证搜索防抖与匹配规则 |
-| **前置条件** | 已知题库中某题标题包含关键字（如"两数"） |
-| **测试步骤** | 1. 访问 `/problem_list.html`<br>2. 在 `#searchInput` 输入该关键字<br>3. 等待 200ms（防抖 80ms） |
+| **前置条件** | `globalSetup` 已将该 Easy 题标题前 2 字符写入 `${TEST_DIFF_KEYWORD}` |
+| **测试步骤** | 1. 访问 `/problem_list.html`<br>2. 在 `#searchInput` 输入 `${TEST_DIFF_KEYWORD}`<br>3. 等待 200ms（防抖 80ms） |
 | **预期结果** | 1. 列表只显示标题包含该关键字的题目<br>2. 搜索对大小写不敏感<br>3. 不影响当前难度筛选 |
 
 #### TC-019: 搜索无匹配结果
@@ -277,9 +367,9 @@
 | **用例ID** | TC-020 |
 | **用例名称** | 查看题目详情 |
 | **测试目的** | 验证详情页元素完整渲染 |
-| **前置条件** | `admin` 已登录，存在题目 ID=1 |
-| **测试步骤** | 1. 在题目列表点击第一行（或直接访问 `/problem.html?id=1`）<br>2. 等待 `#problemContent[aria-busy="false"]` |
-| **预期结果** | 1. URL 变为 `/problem.html?id=1`<br>2. `#problemTitle` 显示题目标题<br>3. `#problemEyebrow` 显示"题库 · 题目 #1"<br>4. `#problemMeta` 显示难度条<br>5. `#editor` 内出现 Ace 编辑器（`.ace_text-input` 存在）<br>6. `#testCaseList` 至少存在一个 `.test-case-row--readonly`（官方用例） |
+| **前置条件** | `admin` 已登录；`globalSetup` 已将首个 Easy 题 id 写入 `${TEST_PROBLEM_ID}` |
+| **测试步骤** | 1. 在题目列表点击第一行（或直接访问 `/problem.html?id=${TEST_PROBLEM_ID}`）<br>2. 等待 `#problemContent[aria-busy="false"]` |
+| **预期结果** | 1. URL 变为 `/problem.html?id=${TEST_PROBLEM_ID}`<br>2. `#problemTitle` 显示题目标题<br>3. `#problemEyebrow` 显示"题库 · 题目 #${TEST_PROBLEM_ID}"<br>4. `#problemMeta` 显示难度条<br>5. `#editor` 内出现 Ace 编辑器（`.ace_text-input` 存在）<br>6. `#testCaseList` 至少存在一个 `.test-case-row--readonly`（官方用例） |
 
 #### TC-021: 题目详情页 404
 
@@ -307,7 +397,7 @@
 
 ### 3.3 代码运行与提交模块
 
-> **前置约定**：TC-023 ~ TC-034 全部基于"`admin` 已登录"前置；测试题目使用后端初始化脚本中的样例题（如有"两数之和" `id=1`）。若题库为空，请先通过 TC-036 创建至少一道"两数之和"题。
+> **前置约定**：TC-023 ~ TC-034 全部基于"`admin` 已登录"前置；测试题目使用 `globalSetup` 动态获取的首个 Easy 题，id 引用 `${TEST_PROBLEM_ID}`（非硬编码）。若题库为空，`globalSetup` 会自动种子化一道「两数之和」题，无需依赖 TC-036 提前创建。
 
 #### TC-023: 提交代码-答案正确 (AC)
 
@@ -316,7 +406,7 @@
 | **用例ID** | TC-023 |
 | **用例名称** | 提交代码-答案正确 (AC) |
 | **测试目的** | 验证 AC 全流程 |
-| **前置条件** | `admin` 已登录，进入 `id=1` 详情页 |
+| **前置条件** | `admin` 已登录，进入 `id=${TEST_PROBLEM_ID}` 详情页 |
 | **测试步骤** | 1. 等待编辑器加载完成<br>2. 在 Ace 编辑器中输入：`#include <iostream>\nusing namespace std;\nint main(){ int a,b; cin>>a>>b; cout<<a+b<<endl; return 0; }`（直接 `editor.setValue(code, -1)`）<br>3. 点击 `#submitBtn`<br>4. 等待 `#resultArea` 不再 pending |
 | **预期结果** | 1. 提交按钮显示 `is-loading` 并禁用<br>2. 结果区出现 `.result-card--ac`<br>3. `.result-card__badge` 文本为 `AC`<br>4. `.result-card__label` 文本为"通过"<br>5. 显示 `executionTimeMs`（数值 ≥ 0） |
 
@@ -327,7 +417,7 @@
 | **用例ID** | TC-024 |
 | **用例名称** | 提交代码-答案错误 (WA) |
 | **测试目的** | 验证 WA 判题 |
-| **前置条件** | `admin` 已登录，进入 `id=1` 详情页 |
+| **前置条件** | `admin` 已登录，进入 `id=${TEST_PROBLEM_ID}` 详情页 |
 | **测试步骤** | 1. 编辑器输入 `cout << a - b << endl;`（输出差值）<br>2. 点击 `#submitBtn` |
 | **预期结果** | 1. `.result-card--wa`<br>2. 顶部 badge 显示 `WA`<br>3. 副标题"答案错误，输出与预期不符" |
 
@@ -338,7 +428,7 @@
 | **用例ID** | TC-025 |
 | **用例名称** | 提交代码-编译错误 (CE) |
 | **测试目的** | 验证 CE 判题 |
-| **前置条件** | `admin` 已登录，进入 `id=1` 详情页 |
+| **前置条件** | `admin` 已登录，进入 `id=${TEST_PROBLEM_ID}` 详情页 |
 | **测试步骤** | 1. 编辑器输入 `int main(){ cout << "x" }`（缺分号）<br>2. 点击 `#submitBtn` |
 | **预期结果** | 1. `.result-card--ce`<br>2. 顶部 badge 显示 `CE`<br>3. 编译信息区出现 `.result-card__output`，文本包含 `error:` 或 `expected ';' before` |
 
@@ -349,7 +439,7 @@
 | **用例ID** | TC-026 |
 | **用例名称** | 提交代码-运行超时 (TLE) |
 | **测试目的** | 验证 5s 超时机制 |
-| **前置条件** | `admin` 已登录，进入 `id=1` 详情页 |
+| **前置条件** | `admin` 已登录，进入 `id=${TEST_PROBLEM_ID}` 详情页 |
 | **测试步骤** | 1. 编辑器输入 `int main(){ while(true){} return 0; }`<br>2. 点击 `#submitBtn`<br>3. 等待 ≤ 8s |
 | **预期结果** | 1. 约 5s 内返回<br>2. `.result-card--tle`<br>3. badge 显示 `TLE`<br>4. 副标题"运行超时" |
 
@@ -360,7 +450,7 @@
 | **用例ID** | TC-027 |
 | **用例名称** | 提交代码-运行错误 (RE) |
 | **测试目的** | 验证 RE 判题 |
-| **前置条件** | `admin` 已登录，进入 `id=1` 详情页 |
+| **前置条件** | `admin` 已登录，进入 `id=${TEST_PROBLEM_ID}` 详情页 |
 | **测试步骤** | 1. 编辑器输入 `int* p=nullptr; *p=1;`（段错误）<br>2. 点击 `#submitBtn` |
 | **预期结果** | 1. `.result-card--re`<br>2. badge 显示 `RE`<br>3. 副标题"运行错误" |
 
@@ -371,7 +461,7 @@
 | **用例ID** | TC-028 |
 | **用例名称** | 提交代码-空代码 |
 | **测试目的** | 验证空代码前端拦截 |
-| **前置条件** | `admin` 已登录，进入 `id=1` 详情页 |
+| **前置条件** | `admin` 已登录，进入 `id=${TEST_PROBLEM_ID}` 详情页 |
 | **测试步骤** | 1. 点击 `#resetBtn` 清空编辑器<br>2. 在编辑器输入 `"   "`（仅空白）<br>3. 点击 `#submitBtn` |
 | **预期结果** | 1. 不发请求<br>2. `.result-card--network` 出现<br>3. 副标题"代码不能为空" |
 
@@ -382,7 +472,7 @@
 | **用例ID** | TC-029 |
 | **用例名称** | 运行测试-官方用例 |
 | **测试目的** | 验证 `/api/run` 流程与逐用例结果展示 |
-| **前置条件** | `admin` 已登录，进入题目详情页 |
+| **前置条件** | `admin` 已登录；`beforeEach` 已清空 sessionStorage，进入 `id=${TEST_PROBLEM_ID}` 详情页（无残留自定义用例） |
 | **测试步骤** | 1. 编辑器输入 AC 答案<br>2. 点击 `#runTestBtn`<br>3. 等待结果 |
 | **预期结果** | 1. 按钮显示 `is-loading` 并禁用<br>2. `.result-card--test` 与 `.result-card--ac` 同时存在<br>3. 顶部 badge 显示 `N/N` 通过计数<br>4. 列表中每个 `.test-case` 含 `test-case--ac`，`source` 标记"官方"<br>5. 每个用例显示 `executionTimeMs` |
 
@@ -393,7 +483,7 @@
 | **用例ID** | TC-030 |
 | **用例名称** | 运行测试-添加自定义用例 |
 | **测试目的** | 验证 LeetCode 风格自定义用例 |
-| **前置条件** | `admin` 已登录，进入题目详情页 |
+| **前置条件** | `admin` 已登录；`beforeEach` 已清空 sessionStorage，进入 `id=${TEST_PROBLEM_ID}` 详情页 |
 | **测试步骤** | 1. 点击 `#addTestCaseBtn`<br>2. 在最后一个 `.test-case-row[data-source="custom"]` 的 `textarea[data-field="input"]` 输入 `42 58`<br>3. 再次点击 `#runTestBtn` |
 | **预期结果** | 1. 列表增加一行 `test-case-row--custom`<br>2. 运行后结果区出现自定义用例（`source: 自定义`），无"预期"行<br>3. 顶部 badge 不计入自定义用例的 pass/fail<br>4. 副标题"全部 N 个官方用例通过，另运行 M 个自定义用例" |
 
@@ -404,7 +494,7 @@
 | **用例ID** | TC-031 |
 | **用例名称** | 重置代码按钮 |
 | **测试目的** | 验证重置逻辑 |
-| **前置条件** | 编辑器已被修改 |
+| **前置条件** | `admin` 已登录；`beforeEach` 已清空 sessionStorage；进入 `id=${TEST_PROBLEM_ID}` 详情页；编辑器已被修改 |
 | **测试步骤** | 1. 修改编辑器内容为 `garbage`<br>2. 点击 `#resetBtn` |
 | **预期结果** | 1. 编辑器内容恢复为初始模板（或服务端返回的 `template`）<br>2. `#resultArea` 清空<br>3. 焦点回到编辑器<br>4. `sessionStorage.oj_editor_code_{id}` 被删除 |
 
@@ -415,7 +505,7 @@
 | **用例ID** | TC-032 |
 | **用例名称** | 代码编辑后重新加载页面 |
 | **测试目的** | 验证 sessionStorage 持久化 |
-| **前置条件** | 已编辑代码 |
+| **前置条件** | `beforeEach` 已清空 sessionStorage；进入 `id=${TEST_PROBLEM_ID}` 详情页 |
 | **测试步骤** | 1. 在编辑器中输入 `MY_CUSTOM_CODE`<br>2. 等待 ≥ 200ms（自动保存）<br>3. `page.reload()` |
 | **预期结果** | 重新加载后编辑器内仍是 `MY_CUSTOM_CODE`，而非默认模板 |
 
@@ -426,7 +516,7 @@
 | **用例ID** | TC-033 |
 | **用例名称** | 自定义用例可删除 |
 | **测试目的** | 验证删除交互 |
-| **前置条件** | `admin` 已登录，进入题目详情页 |
+| **前置条件** | `admin` 已登录；`beforeEach` 已清空 sessionStorage；进入 `id=${TEST_PROBLEM_ID}` 详情页 |
 | **测试步骤** | 1. 点击 `#addTestCaseBtn` 三次<br>2. 在第二个自定义行点击 `.test-case-row__remove`<br>3. 验证该行消失 |
 | **预期结果** | 1. 该自定义用例行被删除，剩余行重新编号<br>2. 官方用例行无删除按钮 |
 
@@ -438,8 +528,8 @@
 | **用例名称** | 未登录提交被拦截 |
 | **测试目的** | 验证提交鉴权 |
 | **前置条件** | 普通用户但 `sessionStorage.oj_username` 已清空（服务端 Session 仍有效） |
-| **测试步骤** | 1. 清除 `sessionStorage.oj_username`<br>2. 进入题目详情页<br>3. 点击 `#submitBtn` |
-| **预期结果** | 1. 跳转到 `/login.html?return=%2Fproblem.html%3Fid%3D...`<br>2. 登录后回到原题 |
+| **测试步骤** | 1. 清除 `sessionStorage.oj_username`<br>2. 进入 `/problem.html?id=${TEST_PROBLEM_ID}`<br>3. 点击 `#submitBtn` |
+| **预期结果** | 1. 跳转到 `/login.html?return=%2Fproblem.html%3Fid%3D${TEST_PROBLEM_ID}`<br>2. 登录后回到原题 |
 
 ---
 
@@ -464,7 +554,7 @@
 | **用例名称** | 创建新题目 |
 | **测试目的** | 验证完整创建流程 |
 | **前置条件** | `admin` 已登录 |
-| **测试步骤** | 1. 访问 `/admin.html`<br>2. `input[name="title"]` 输入 `两数之和_{unix_timestamp}`<br>3. `input[name="difficulty"][value="Easy"]` 选中（默认）<br>4. `textarea[name="content"]` 输入 `给定两个整数 a 和 b，输出它们的和。`<br>5. `textarea[name="template"]` 输入 `int main(){ int a,b; cin>>a>>b; cout<<a+b<<endl; return 0; }`<br>6. 用例 1：input=`1 2`、expected=`3`；用例 2：input=`100 200`、expected=`300`<br>7. 点击 `#submitNewBtn` |
+| **测试步骤** | 1. 访问 `/admin.html`<br>2. `input[name="title"]` 输入 `两数之和_${TS}`（`${TS}` 由 `beforeEach` 注入秒级时间戳）<br>3. `input[name="difficulty"][value="Easy"]` 选中（默认）<br>4. `textarea[name="content"]` 输入 `给定两个整数 a 和 b，输出它们的和。`<br>5. `textarea[name="template"]` 输入 `int main(){ int a,b; cin>>a>>b; cout<<a+b<<endl; return 0; }`<br>6. 用例 1：input=`1 2`、expected=`3`；用例 2：input=`100 200`、expected=`300`<br>7. 点击 `#submitNewBtn` |
 | **预期结果** | 1. 按钮进入 `is-loading` 并禁用<br>2. 出现 Toast "题目已添加"<br>3. 右侧题目列表自动刷新并出现新题（按 id 升序）<br>4. `#problemCount` 计数 +1<br>5. 表单被重置，测试用例恢复为默认两行<br>6. 后端 `POST /api/admin/problems` 返回 201 |
 
 #### TC-037: 创建题目-缺少标题
@@ -508,7 +598,7 @@
 | **用例名称** | 创建题目-空测试用例跳过 |
 | **测试目的** | 验证容错 |
 | **前置条件** | `admin` 已登录 |
-| **测试步骤** | 1. 填好标题/描述/难度<br>2. 测试用例全部留空<br>3. 点击 `#submitNewBtn` |
+| **测试步骤** | 1. `input[name="title"]` 输入 `empty_cases_${TS}`（`${TS}` 由 `beforeEach` 注入秒级时间戳，避免重跑冲突）<br>2. 填好描述/难度<br>3. 测试用例全部留空<br>4. 点击 `#submitNewBtn` |
 | **预期结果** | 题目仍可创建成功（请求中不携带 `testCases` 数组），Toast "题目已添加" |
 
 #### TC-041: 删除题目-确认
@@ -518,9 +608,9 @@
 | **用例ID** | TC-041 |
 | **用例名称** | 删除题目-确认 |
 | **测试目的** | 验证删除全链路 |
-| **前置条件** | `admin` 已登录，存在题目 id=1 |
-| **测试步骤** | 1. 进入 `/admin.html`<br>2. 点击 id=1 行的 `.problem-table__delete`<br>3. `#deleteModal` 弹出后点击 `#confirmDeleteBtn` |
-| **预期结果** | 1. Modal 出现 `#deleteModalBody` 文案"将永久删除题目 #1「…」"<br>2. 焦点默认在 `#cancelDeleteBtn`<br>3. 确认后出现 Toast "正在删除…"，再出现"已删除「…」"<br>4. 列表行数 -1，`#problemCount` 同步更新<br>5. 后端 `DELETE /api/admin/problems/1` 返回 200 |
+| **前置条件** | `admin` 已登录；`globalSetup` 已创建临时题 `delete_target_${TS}`，其 id 写入 `${TEST_TEMP_PROBLEM_ID}`；`globalTeardown` 兜底再删一次 |
+| **测试步骤** | 1. 进入 `/admin.html`<br>2. 点击 `id=${TEST_TEMP_PROBLEM_ID}` 行的 `.problem-table__delete`<br>3. `#deleteModal` 弹出后点击 `#confirmDeleteBtn` |
+| **预期结果** | 1. Modal 出现 `#deleteModalBody` 文案"将永久删除题目 #${TEST_TEMP_PROBLEM_ID}「delete_target_${TS}」"<br>2. 焦点默认在 `#cancelDeleteBtn`<br>3. 确认后出现 Toast "正在删除…"，再出现"已删除「delete_target_${TS}」"<br>4. 列表行数 -1，`#problemCount` 同步更新<br>5. 后端 `DELETE /api/admin/problems/${TEST_TEMP_PROBLEM_ID}` 返回 200 |
 
 #### TC-042: 删除题目-取消
 
@@ -529,8 +619,8 @@
 | **用例ID** | TC-042 |
 | **用例名称** | 删除题目-取消 |
 | **测试目的** | 验证取消按钮 |
-| **前置条件** | `admin` 已登录，存在题目 |
-| **测试步骤** | 1. 触发删除按钮，弹出 Modal<br>2. 点击 `#cancelDeleteBtn` |
+| **前置条件** | `admin` 已登录；`globalSetup` 已创建临时题，其 id 写入 `${TEST_TEMP_PROBLEM_ID}`；`globalTeardown` 兜底删除 |
+| **测试步骤** | 1. 在 `id=${TEST_TEMP_PROBLEM_ID}` 行触发删除按钮，弹出 Modal<br>2. 点击 `#cancelDeleteBtn` |
 | **预期结果** | 1. Modal `hidden=true`<br>2. 列表无变化<br>3. 无后端 DELETE 请求 |
 
 #### TC-043: 删除题目-Esc 关闭弹窗
@@ -540,8 +630,8 @@
 | **用例ID** | TC-043 |
 | **用例名称** | 删除题目-Esc 关闭弹窗 |
 | **测试目的** | 验证键盘交互 |
-| **前置条件** | `admin` 已登录，存在题目 |
-| **测试步骤** | 1. 触发删除按钮，弹出 Modal<br>2. 按 `Escape` 键 |
+| **前置条件** | `admin` 已登录；`globalSetup` 已创建临时题，其 id 写入 `${TEST_TEMP_PROBLEM_ID}`；`globalTeardown` 兜底删除 |
+| **测试步骤** | 1. 在 `id=${TEST_TEMP_PROBLEM_ID}` 行触发删除按钮，弹出 Modal<br>2. 按 `Escape` 键 |
 | **预期结果** | Modal 关闭，列表无变化，无后端 DELETE 请求 |
 
 #### TC-044: 删除题目-点击背景关闭
@@ -551,8 +641,8 @@
 | **用例ID** | TC-044 |
 | **用例名称** | 删除题目-点击背景关闭 |
 | **测试目的** | 验证背景交互 |
-| **前置条件** | `admin` 已登录，存在题目 |
-| **测试步骤** | 1. 触发删除按钮，弹出 Modal<br>2. 点击 `.modal__backdrop` |
+| **前置条件** | `admin` 已登录；`globalSetup` 已创建临时题，其 id 写入 `${TEST_TEMP_PROBLEM_ID}`；`globalTeardown` 兜底删除 |
+| **测试步骤** | 1. 在 `id=${TEST_TEMP_PROBLEM_ID}` 行触发删除按钮，弹出 Modal<br>2. 点击 `.modal__backdrop` |
 | **预期结果** | Modal 关闭，列表无变化 |
 
 #### TC-045: 题库为空
@@ -562,9 +652,10 @@
 | **用例ID** | TC-045 |
 | **用例名称** | 题库为空 |
 | **测试目的** | 验证空态渲染 |
-| **前置条件** | 全部题目已被删除 |
+| **前置条件** | **本用例必须作为独立 suite 单独运行**。suite `beforeAll` 备份 `problems` / `test_cases` 表后 `TRUNCATE` 清空（**保留 `users` 表**）；suite `afterAll` 从 `database/init.sql` 种子数据重新导入恢复 |
 | **测试步骤** | 1. 进入 `/admin.html` |
 | **预期结果** | 1. `#tableWrapper` 显示 `.empty-state` 包含"暂无题目"<br>2. `#problemCount` 显示 `0 题`<br>3. 表单仍可正常使用 |
+| **重跑保护** | 用例体内加 `test.skip((await getProblemCount()) > 0, '题库非空，跳过')`；若与 `TC-013` / `TC-014` 等依赖题库非空的用例混跑，必须**先关停其他 suite** |
 
 #### TC-046: 创建题目-难度非法
 
@@ -574,7 +665,7 @@
 | **用例名称** | 创建题目-难度非法 |
 | **测试目的** | 验证后端难度枚举校验 |
 | **前置条件** | `admin` 已登录 |
-| **测试步骤** | 1. 携带 admin Session Cookie，使用 `fetch('/api/admin/problems', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: 'x', difficulty: 'Super', content: 'x' }) })` |
+| **测试步骤** | 1. 携带 admin Session Cookie，使用 `fetch('/api/admin/problems', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: \`illegal_${TS}\`, difficulty: 'Super', content: 'x' }) })`（`${TS}` 由 `beforeEach` 注入秒级时间戳） |
 | **预期结果** | 后端返回 400 + `{"error":"Invalid difficulty. Must be Easy, Medium, or Hard"}` |
 
 ---
@@ -610,8 +701,8 @@
 | **用例ID** | TC-049 |
 | **用例名称** | 普通用户访问管理后台 |
 | **测试目的** | 验证角色越权拦截 |
-| **前置条件** | 已注册普通用户 `testuser_xxx` 登录 |
-| **测试步骤** | 1. 用普通用户登录<br>2. 访问 `/admin.html` |
+| **前置条件** | `globalSetup` 已注册并登录普通用户 `${TEST_NORMAL_USER}` |
+| **测试步骤** | 1. 用 `${TEST_NORMAL_USER}` 登录（已在 `globalSetup` 完成）<br>2. 访问 `/admin.html` |
 | **预期结果** | 1. `/api/me` 返回 `role=user`<br>2. 出现 Toast "需要管理员权限"（约 2.2s）<br>3. 跳转 `/problem_list.html`<br>4. 直接 `fetch('POST /api/admin/problems')` 返回 403 `{"error":"Forbidden"}` |
 
 #### TC-050: 管理员角色标识显示
@@ -665,7 +756,7 @@
 | **用例ID** | TC-054 |
 | **用例名称** | 越权 POST 题库 API |
 | **测试目的** | 验证接口级鉴权 |
-| **前置条件** | 普通用户已登录 |
+| **前置条件** | `globalSetup` 已注册并登录普通用户 `${TEST_NORMAL_USER}` |
 | **测试步骤** | 1. 用普通用户 Cookie 调 `fetch('/api/admin/problems', { method: 'POST', body: JSON.stringify({...}) })` |
 | **预期结果** | 返回 403 `{"error":"Forbidden"}` |
 
@@ -676,8 +767,8 @@
 | **用例ID** | TC-055 |
 | **用例名称** | 越权 DELETE 题库 API |
 | **测试目的** | 验证接口级鉴权 |
-| **前置条件** | 普通用户已登录 |
-| **测试步骤** | 1. 用普通用户 Cookie 调 `fetch('/api/admin/problems/1', { method: 'DELETE' })` |
+| **前置条件** | `globalSetup` 已注册并登录普通用户 `${TEST_NORMAL_USER}` |
+| **测试步骤** | 1. 用普通用户 Cookie 调 `fetch('/api/admin/problems/${TEST_PROBLEM_ID}', { method: 'DELETE' })`（用动态题 id 避免对固定 1 的依赖） |
 | **预期结果** | 返回 403 `{"error":"Forbidden"}` |
 
 #### TC-056: 网络异常 Toast
@@ -752,12 +843,18 @@
 
 ### 4.2 推荐测试题目
 
-自动化前请确保题库至少包含 1 道"两数之和"题（Easy），用例：
+> **说明**：本节描述的「两数之和」种子题已由 `globalSetup` 自动保证存在（详见 1.3.2）：若题库中已存在任意 Easy 题，`globalSetup` 直接复用首个；若无 Easy 题则自动种子化一道。**无需测试前手动准备**。
 
-| 用例 # | stdin | stdout 预期 |
-|--------|-------|-------------|
-| 1 | `1 2` | `3` |
-| 2 | `100 200` | `300` |
+种子化时的题目规格（由 `seedTwoSumProblem()` 实现）：
+
+| 字段 | 值 |
+|------|-----|
+| 标题 | `两数之和_seed`（admin 手工调整无碍，**不**带时间戳） |
+| 难度 | `Easy` |
+| 描述 | `给定两个整数 a 和 b，输出它们的和。` |
+| 模板 | `int main(){ int a,b; cin>>a>>b; cout<<a+b<<endl; return 0; }` |
+| 用例 1 | input=`1 2`、expected=`3` |
+| 用例 2 | input=`100 200`、expected=`300` |
 
 ### 4.3 测试代码片段
 
@@ -836,6 +933,45 @@ int main() {
 const username = `testuser_${Math.floor(Date.now() / 1000)}`;
 const password = 'Test1234';
 ```
+
+### 4.5 幂等性矩阵
+
+下表列出**所有具有数据库副作用**或**依赖外部状态**的用例。`beforeEach` 钩子统一负责清 Cookie + sessionStorage（详见 1.3.1），下表不再重复列出。
+
+| 用例 ID | 副作用类型 | setup 动作 | teardown 动作 | 动态变量 | 备注 |
+|---------|-----------|-----------|--------------|---------|------|
+| TC-001 | +1 用户 | — | — | `${TS}` | 时间戳用户名，第二次跑不会冲突 |
+| TC-002 | 无 | — | — | — | 依赖 `admin` 永久存在 |
+| TC-003~005 | 无 | — | — | — | 前端校验，未提交后端 |
+| TC-006~007 | 无 | — | — | — | UI 交互 |
+| TC-008~009 | 无 | — | — | — | admin 登录态/失败 |
+| TC-010 | 无 | `globalSetup` 取题 | — | `${TEST_PROBLEM_ID}` | 动态 id 替换 |
+| TC-011~017 | 无 | — | — | — | 鉴权/列表/筛选 |
+| TC-018 | 无 | `globalSetup` 取题关键字 | — | `${TEST_DIFF_KEYWORD}` | 动态关键字 |
+| TC-019 | 无 | — | — | — | 搜索空态 |
+| TC-020 | 无 | `globalSetup` 取题 | — | `${TEST_PROBLEM_ID}` | 动态 id |
+| TC-021 | 无 | — | — | — | 99999 故意不存在 |
+| TC-022 | 无 | — | — | — | 缺省参数 |
+| TC-023~028 | 无 | `globalSetup` 取题 | — | `${TEST_PROBLEM_ID}` | AC/WA/CE/TLE/RE/空代码 |
+| TC-029~033 | 无 | `globalSetup` 取题 + `beforeEach` 清 sessionStorage | — | `${TEST_PROBLEM_ID}` | 自定义用例不残留 |
+| TC-034 | 无 | `globalSetup` 取题 | — | `${TEST_PROBLEM_ID}` | 未登录拦截 |
+| TC-035~039 | 无 | — | — | — | 后台 CRUD 校验 |
+| TC-036 | +1 题目 | — | `globalTeardown` 按 `_(1\d{9,})$` 正则删除 | `${TS}` | 时间戳标题 |
+| TC-037~039 | 无 | — | — | — | 表单校验 |
+| TC-040 | +1 题目 | — | `globalTeardown` 按 `_(1\d{9,})$` 正则删除 | `${TS}` | 时间戳标题 |
+| TC-041 | -1 题目 | `globalSetup` 创建 `delete_target_${TS}` | `globalTeardown` 兜底再删一次 | `${TEST_TEMP_PROBLEM_ID}`, `${TS}` | 真实删除链路 |
+| TC-042 | 0（取消） | 同 TC-041 | 同 TC-041 | 同 TC-041 | 不真删 |
+| TC-043 | 0（Esc） | 同 TC-041 | 同 TC-041 | 同 TC-041 | 不真删 |
+| TC-044 | 0（背景） | 同 TC-041 | 同 TC-041 | 同 TC-041 | 不真删 |
+| TC-045 | **全清** | suite `beforeAll` `TRUNCATE` | suite `afterAll` `init.sql` 恢复 | — | **必须独立 suite** |
+| TC-046 | 0（拒绝） | — | — | `${TS}` | 后端 400，不入库 |
+| TC-047~056 | 无 | `globalSetup` 注册普通用户 | — | `${TEST_NORMAL_USER}` | 越权类依赖普通用户 |
+| TC-057~060 | 无 | — | — | — | 导航类，无副作用 |
+
+> **使用提示**：
+> - 跑全量 suite 时，**禁止**把 TC-045 与其他 suite 一起执行。
+> - 排查重跑失败时，优先查 `globalTeardown` 是否被正常调用（中断 / 异常退出场景）。
+> - 上文 4.3 的「空代码（仅空白）」片段会被多个用例复用，若被前序用例残留污染，需配合 `editor.setValue('', -1)` + `beforeEach` 清 sessionStorage 处理。
 
 ---
 
