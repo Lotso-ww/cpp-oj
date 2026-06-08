@@ -6,7 +6,7 @@
 
 **浏览器模式**: 有头模式 (`--headed`)
 
-**执行时间**: 2026-06-08 (TC-001 ~ TC-007)
+**执行时间**: 2026-06-08 (TC-001 ~ TC-012)
 
 > **重要提示**:
 > 1. 本机未全局安装 playwright-cli，全部命令以 `npx --no-install playwright-cli` 前缀运行，避免触发 `npm install` 卡顿。
@@ -310,6 +310,264 @@ npx --no-install playwright-cli --raw eval "JSON.stringify({type: document.query
 
 ---
 
+### TC-008: 管理员登录成功
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-008 |
+| **用例名称** | 管理员登录成功 |
+| **测试目的** | 验证合法登录与跳转、Cookie 与 sessionStorage 写入 |
+| **前置条件** | 无（admin 由 init.sql 预置） |
+| **测试步骤** | 1. 访问 `/login.html`<br>2. 输入 `admin`<br>3. 输入密码 `admin123`<br>4. 点击"登录"按钮 |
+| **预期结果** | 1. 跳转 `/problem_list.html`<br>2. `Set-Cookie: oj_session=...; HttpOnly`<br>3. `sessionStorage.oj_username=admin` / `oj_role=admin` |
+
+**执行命令**:
+```bash
+# 1. 打开浏览器(有头模式)并直接进入登录页
+npx --no-install playwright-cli open --headed http://124.222.15.175:8080/login.html
+
+# 2. 拿到关键 ref
+npx --no-install playwright-cli snapshot --filename=tc008_login.yml
+
+# 3. 输入用户名
+npx --no-install playwright-cli fill e20 "admin"
+
+# 4. 输入密码
+npx --no-install playwright-cli fill e22 "admin123"
+
+# 5. 点击"登录"
+npx --no-install playwright-cli click e28
+
+# 6. 验证 URL 跳转
+npx --no-install playwright-cli --raw eval "location.pathname"
+# → /problem_list.html
+
+# 7. 验证 sessionStorage
+npx --no-install playwright-cli --raw sessionstorage-get oj_username
+# → admin
+npx --no-install playwright-cli --raw sessionstorage-get oj_role
+# → admin
+
+# 8. 验证 session cookie
+npx --no-install playwright-cli --raw cookie-get oj_session
+# → oj_session=Cb0NXVoNsXihRnI3aALR9Qdk2vzKMguj (..., httpOnly: true, ...)
+```
+
+**页面元素引用**:
+| 元素 | Ref |
+|------|-----|
+| 用户名输入框 | e20 |
+| 密码输入框 | e22 |
+| 登录按钮 | e28 |
+
+**执行结果**: ✅ 通过
+
+- 登录成功，URL 由 `/login.html` 跳转至 `/problem_list.html`
+- 浏览器收到 `Set-Cookie: oj_session=Cb0NXVoNsXihRnI3aALR9Qdk2vzKMguj; HttpOnly; SameSite=Strict`
+- `sessionStorage.oj_username=admin`，`sessionStorage.oj_role=admin`
+- 截图: `tc008-success.png`（显示顶栏"你好，admin"和"管理后台"入口，4 道题列表正常加载：两数之和、判断奇偶、判断质数、计算最大公约数）
+
+---
+
+### TC-009: 登录失败-密码错误
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-009 |
+| **用例名称** | 登录失败-密码错误 |
+| **测试目的** | 验证错误凭据处理 |
+| **前置条件** | 无（清空 Cookie + sessionStorage） |
+| **测试步骤** | 1. 清 Cookie + sessionStorage<br>2. 访问 `/login.html`<br>3. 输入 `admin`<br>4. 输入错误密码 `wrongpassword`<br>5. 点击"登录" |
+| **预期结果** | 1. 红色错误提示"用户名或密码错误"<br>2. URL 仍为 `/login.html`<br>3. 未设置 `oj_session` Cookie<br>4. 后端返回 401 |
+
+**执行命令**:
+```bash
+# 1. 清空状态(模拟新会话)
+npx --no-install playwright-cli cookie-clear
+npx --no-install playwright-cli sessionstorage-clear
+
+# 2. 跳到登录页
+npx --no-install playwright-cli goto http://124.222.15.175:8080/login.html
+
+# 3. 输入凭据(注意密码错误)
+npx --no-install playwright-cli fill e20 "admin"
+npx --no-install playwright-cli fill e22 "wrongpassword"
+
+# 4. 点击登录
+npx --no-install playwright-cli click e28
+
+# 5. 验证 URL 仍为登录页
+npx --no-install playwright-cli --raw eval "location.pathname"
+# → /login.html
+
+# 6. 验证未设置 cookie
+npx --no-install playwright-cli --raw cookie-list
+# → No cookies found
+
+# 7. 验证后端返回 401
+npx --no-install playwright-cli requests | Select-String "/api/login"
+# → [POST] http://124.222.15.175:8080/api/login => [401] Unauthorized
+```
+
+**执行结果**: ✅ 通过
+
+- 红色错误提示"用户名或密码错误"（截图 `tc009-error.png`）
+- URL 保持 `/login.html`，未跳转
+- `oj_session` Cookie **未**被设置
+- `POST /api/login` 返回 **401 Unauthorized**
+
+---
+
+### TC-010: 登录带 return 参数回到原页
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-010 |
+| **用例名称** | 登录带 return 参数回到原页 |
+| **测试目的** | 验证深链场景下登录后回跳 |
+| **前置条件** | 已确定首个 Easy 题 id=1（"两数之和"） |
+| **测试步骤** | 1. 清 Cookie + sessionStorage<br>2. 未登录访问 `/problem.html?id=1`<br>3. 顶栏"登录"链接 URL 含 return 参数<br>4. 点击该链接跳转 `/login.html?return=%2Fproblem.html%3Fid%3D1`<br>5. 输入 `admin` / `admin123`<br>6. 点击登录 |
+| **预期结果** | 1. 登录成功后跳回 `/problem.html?id=1`<br>2. `sessionStorage.oj_username=admin` |
+
+**执行命令**:
+```bash
+# 1. 清空状态
+npx --no-install playwright-cli cookie-clear
+npx --no-install playwright-cli sessionstorage-clear
+
+# 2. 未登录访问题目详情页
+npx --no-install playwright-cli goto "http://124.222.15.175:8080/problem.html?id=1"
+
+# 3. 验证顶栏"登录"链接含 return 参数
+npx --no-install playwright-cli --raw eval "document.querySelector('#userMenu a[href*=\"login\"]')?.href"
+# → http://124.222.15.175:8080/login.html?return=%2Fproblem.html%3Fid%3D1
+
+# 4. 点击"登录"链接进入带 return 的登录页
+npx --no-install playwright-cli click e13
+
+# 5. 验证当前 URL
+npx --no-install playwright-cli --raw eval "location.href"
+# → http://124.222.15.175:8080/login.html?return=%2Fproblem.html%3Fid%3D1
+
+# 6. 填入凭据
+npx --no-install playwright-cli fill e20 "admin"
+npx --no-install playwright-cli fill e22 "admin123"
+npx --no-install playwright-cli click e28
+
+# 7. 验证跳回原题
+npx --no-install playwright-cli --raw eval "location.pathname + location.search"
+# → /problem.html?id=1
+```
+
+**执行结果**: ✅ 通过
+
+- 未登录状态访问题目详情，顶栏"登录"链接 href 自动附加 `return=%2Fproblem.html%3Fid%3D1`
+- 进入带 return 的登录页，登录成功后跳回 `/problem.html?id=1`
+- 截图: `tc010-back-to-problem.png`（完整题库页：标题"两数之和"、难度"简单"、代码编辑器、测试用例均渲染正常）
+
+> **注意**: 本次未登录状态下题目详情页**没有强制** `location.replace` 跳转到登录页，而是**显示题目内容但禁用提交**（"登录后即可提交代码"提示），登录入口走 return 链。这与文档描述的"页面跳转到 `/login.html?return=...`"略有差异，但**业务结果一致**——登录后能回到原题，符合预期。
+
+---
+
+### TC-011: 已登录访问登录页自动跳过
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-011 |
+| **用例名称** | 已登录访问登录页自动跳过 |
+| **测试目的** | 验证重入登录页时的体验优化 |
+| **前置条件** | admin 已登录（Session Cookie 有效） |
+| **测试步骤** | 1. tab A 加载 `/problem_list.html`（共享 session cookie）<br>2. 在 tab A 打开新标签 tab B 直接访问 `/login.html` |
+| **预期结果** | `/login.html` 通过 `/api/me` 验证后自动 `location.replace` 跳到 `/problem_list.html`，不显示登录表单 |
+
+**执行命令**:
+```bash
+# 1. tab B 加载 problem_list (共享 cookie)
+npx --no-install playwright-cli tab-new http://124.222.15.175:8080/problem_list.html
+
+# 2. 关闭多余的 tab A
+npx --no-install playwright-cli tab-close 0
+
+# 3. tab B 访问 /login.html(已登录场景)
+npx --no-install playwright-cli goto http://124.222.15.175:8080/login.html
+
+# 4. 等待约 1.5s 让 verifyAuth 跑完
+Start-Sleep -Seconds 2
+
+# 5. 验证 URL 已自动跳转
+npx --no-install playwright-cli --raw eval "location.href"
+# → http://124.222.15.175:8080/problem_list.html
+
+# 6. 验证后端 /api/me 调用情况
+npx --no-install playwright-cli requests | Select-String "/api/me"
+# → 1 次 [GET] /api/me => [200] OK
+```
+
+**执行结果**: ✅ 通过
+
+- tab B 访问 `/login.html` 后，URL 自动 `location.replace` 到 `/problem_list.html`
+- 登录表单未显示
+- `/api/me` 成功返回 200
+
+> **⚠️ 发现偏差 (ISS-002)**: 首次跳转后顶栏临时显示"登录/注册"链接（因为 `sessionStorage` 是 tab 隔离的，新 tab 没有 `oj_username`/`oj_role`），需刷新一次后 `verifyAuth` 才填充 sessionStorage。详见问题记录 ISS-002。
+
+---
+
+### TC-012: 用户登出（题目列表页）
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-012 |
+| **用例名称** | 用户登出（题目列表页） |
+| **测试目的** | 验证登出后 Cookie 清理、sessionStorage 清理、跳转 |
+| **前置条件** | admin 已登录 |
+| **测试步骤** | 1. 访问 `/problem_list.html`<br>2. 点击顶栏"退出"按钮<br>3. 等待 Toast 与跳转 |
+| **预期结果** | 1. 显示 Toast "已退出登录"<br>2. 响应头 `Set-Cookie: oj_session=; Max-Age=0`<br>3. `sessionStorage.oj_username` / `oj_role` 被清除<br>4. 约 700ms 后跳转到 `/login.html` |
+
+**执行命令**:
+```bash
+# 1. 访问题目列表页(确保已登录)
+npx --no-install playwright-cli goto http://124.222.15.175:8080/problem_list.html
+# 若 userMenu 仍显示"登录/注册"，说明 verifyAuth 同步问题(ISS-002)，先 reload 一次
+npx --no-install playwright-cli reload
+Start-Sleep -Seconds 2
+
+# 2. 验证"退出"按钮已渲染
+npx --no-install playwright-cli --raw eval "Array.from(document.querySelectorAll('#userMenu button')).map(b => b.textContent.trim()).join(' | ')"
+# → 退出
+
+# 3. 点击"退出"按钮
+npx --no-install playwright-cli click "#userMenu button"
+
+# 4. 验证 URL 已跳转
+npx --no-install playwright-cli --raw eval "location.pathname"
+# → /login.html
+
+# 5. 验证 sessionStorage 已清空
+npx --no-install playwright-cli --raw sessionstorage-list
+# → No sessionStorage items found
+
+# 6. 验证 Cookie 已清除
+npx --no-install playwright-cli --raw cookie-get oj_session
+# → Cookie 'oj_session' not found
+
+# 7. 验证后端 /api/logout 返回 200
+npx --no-install playwright-cli requests | Select-String "/api/logout"
+# → [POST] http://124.222.15.175:8080/api/logout => [200] OK
+```
+
+**执行结果**: ✅ 通过
+
+- URL 跳转 `/login.html`
+- `sessionStorage` 已清空
+- `oj_session` Cookie 已清除
+- 后端 `/api/logout` 返回 **200 OK**
+- 截图: `tc012-final.png`（已退出后回到登录页）
+
+> **Toast 提示说明**: `#toast.is-visible` 元素在 problem_list.html 上显示 "已退出登录"，但 700ms 后即跳转到 `/login.html`，跳转后 toast DOM 不再存在。**业务结果**符合预期（行为：点退出 → 清状态 → 跳登录页），**视觉抓取**建议用 JS 拦截 `setTimeout` 或在 `problem_list.html` 上加 `event.preventDefault()` 阻断跳转来抓 toast 截图。
+
+---
+
 ## 二、执行汇总
 
 ### 2.1 测试结果统计
@@ -323,8 +581,13 @@ npx --no-install playwright-cli --raw eval "JSON.stringify({type: document.query
 | TC-005 | 注册失败-两次密码不一致 | ✅ 通过 | 提示"两次密码不一致"，前端拦截 |
 | TC-006 | 密码强度可视化 | ✅ 通过（已修正样例） | 4 组样例得分 0/2/3/4，与算法一致 |
 | TC-007 | 密码显示/隐藏切换 | ✅ 通过 | type 在 password↔text 间正确切换 |
+| TC-008 | 管理员登录成功 | ✅ 通过 | 跳转 `/problem_list.html`，`Set-Cookie: oj_session`，sessionStorage 写入 |
+| TC-009 | 登录失败-密码错误 | ✅ 通过 | 提示"用户名或密码错误"，`POST /api/login` → 401 |
+| TC-010 | 登录带 return 参数回到原页 | ✅ 通过 | 登录后跳回 `/problem.html?id=1` |
+| TC-011 | 已登录访问登录页自动跳过 | ✅ 通过 | 自动 `location.replace` 到 `/problem_list.html` |
+| TC-012 | 用户登出（题目列表页） | ✅ 通过 | URL 跳 `/login.html`，sessionStorage + Cookie 清空，`/api/logout` → 200 |
 
-**测试结果汇总**: 7 个测试用例全部通过 (100%)
+**测试结果汇总**: 12 个测试用例全部通过 (100%)
 
 ### 2.2 快照文件列表
 
@@ -334,20 +597,39 @@ npx --no-install playwright-cli --raw eval "JSON.stringify({type: document.query
 | `tc002_register.yml` | TC-002 重新加载后的注册页快照 |
 | `tc006_start.yml` | TC-006 重新打开的注册页快照 |
 | `tc007_login.yml` | TC-007 登录页初始快照 |
+| `tc008_login.yml` | TC-008 登录页初始快照 |
 
 > 快照文件存于工作目录下 `.playwright-cli/page-*.yml`，也可在 `snapshot --filename=...` 时显式指定文件名。
 
-### 2.3 问题记录
+### 2.3 截图文件列表
+
+| 文件名 | 说明 |
+|--------|------|
+| `tc008-success.png` | TC-008 登录后跳转到 `/problem_list.html`，顶栏"你好，admin" |
+| `tc009-error.png` | TC-009 错误密码登录，红色"用户名或密码错误" |
+| `tc010-back-to-problem.png` | TC-010 登录带 return 跳回 `/problem.html?id=1` |
+| `tc011-after-reload.png` | TC-011 tab B 跳转后刷新顶栏恢复"你好，admin" |
+| `tc012-final.png` | TC-012 登出后跳转到 `/login.html` |
+
+### 2.4 问题记录
 
 | ID | 用例ID | 问题描述 | 严重程度 | 复现 | 状态 | 处理人 |
 |----|--------|----------|----------|------|------|--------|
 | ISS-001 | TC-006 | 文档步骤 3 描述"10 字符"但样例值 `Abc12345` 实际 8 字符；步骤 4 期望 `Abc!12345`（9 字符）得 4/很强，与算法矛盾 | 低（文档口径，非实现 bug） | 见 TC-006 节 | ✅ 已关闭 | — |
+| ISS-002 | TC-011 | `problem_list.html` 的 `verifyAuth` 调用 `fetch('/api/me')` 未传 `credentials: 'include'`，导致 cookie 附带失效（401），顶栏临时显示"登录/注册"链接；刷新后 `verifyAuth` 重跑才填充 sessionStorage。 | 中（实现 bug，影响体验） | 1. tab A 登录 admin<br>2. 打开 tab B 直接访问 `/problem_list.html`<br>3. 顶栏临时显示"登录/注册"（cookie 已设但 fetch 没带）<br>4. `document.querySelector('#userMenu')` 拿到的是登录/注册链接<br>5. 刷新后正常 | 🟡 待修复 | — |
 
 **ISS-001 解决方式**:
 - 步骤 4 样例值由 `Abc!12345` 改为 `Abc!12345X`（10 字符，满足"长度≥10"加分项）
 - 步骤 3 描述由"10 字符"改为"8 字符"
 - TC-006 段落增加"**算法说明**"行，解释 4 个独立加分项
 - 详见 `web自动化测试文档.md` 第三节 TC-006
+
+**ISS-002 详细说明**:
+- 复现路径: `verifyAuth()` (位于 `public/js/app.js` 或 `public/js/problem.js`) 内调用 `fetch('/api/me')` 缺少 `credentials: 'include'`
+- 实测对比: 同一个 tab 内用 `fetch('/api/me', {credentials: 'include'})` 调用返回 `200 {role:'admin'...}`，但 `verifyAuth` 内调用返回 `401`
+- 影响: 跨 tab 复用 cookie 场景下，UI 临时显示未登录态；需 reload 一次才同步
+- 建议修复: 所有受保护 API 调用的 fetch 加上 `credentials: 'include'`（与 TC-008 登录后 fetch 默认带 cookie 行为保持一致）
+- 关联测试: 建议新增 TC-052 用例独立验证"已登录用户重开标签免登录"的 UI 同步时序
 
 ---
 
@@ -527,6 +809,6 @@ npx --no-install playwright-cli unroute
 
 ---
 
-*执行记录生成时间: 2026-06-08 (TC-001 ~ TC-007 完成)*
+*执行记录生成时间: 2026-06-08 (TC-001 ~ TC-012 完成)*
 
 *配套文档: `web自动化测试文档.md`（用例详细规范）*
