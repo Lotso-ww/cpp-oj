@@ -1,0 +1,2 @@
+[    1340ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://124.222.15.175:8080/favicon.ico:0
+[  107655ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://124.222.15.175:8080/api/me:0
