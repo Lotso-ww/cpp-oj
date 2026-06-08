@@ -37,3 +37,4 @@ build/
 .opencode/
 .playwright-cli/
 *.png
+*.yml
