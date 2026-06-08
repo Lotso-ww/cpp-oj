@@ -135,3 +135,6 @@ add_executable(create_admin tools/create_admin.cc
     src/model/user.cc
     src/utils/password.cc)
 target_link_libraries(create_admin yaml-cpp mysqlclient jsoncpp ssl crypto crypt botan-2 pthread)
+
+add_executable(reset_db tools/reset_db.cc)
+target_link_libraries(reset_db mysqlclient crypt botan-2 pthread)
