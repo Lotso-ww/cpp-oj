@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#FAFAF7" />
+  <meta name="description" content="CPP·OJ — 为 C++ 学习者精心打造的在线评测系统。在浏览器中完成编辑、编译、运行与评测的完整闭环。" />
+  <meta name="keywords" content="C++, OJ, 在线评测, 刷题, 算法, 教学, CPP OJ" />
+  <meta property="og:title" content="CPP·OJ — 为 C++ 学习者打造的在线评测系统" />
+  <meta property="og:description" content="简洁、现代、高性能。在浏览器中完成 C++ 代码的编辑、编译、运行与评测。" />
+  <meta property="og:type" content="website" />
+  <title>CPP·OJ — 为 C++ 学习者打造的在线评测系统</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,400&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css" />
+  <link rel="stylesheet" href="/css/style.css?v=7" />
+  <link rel="stylesheet" href="/css/landing.css?v=1" />
+</head>
+<body>
+  <main class="landing" id="top" role="main">
+
+    <!-- ========== Topbar ========== -->
+    <header class="topbar topbar--landing" id="topbar">
+      <div class="topbar__inner">
+        <a href="/index.html" class="wordmark" aria-label="CPP OJ — 首页">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 19h8" />
+            <path d="m4 17 6-6-6-6" />
+            <path d="m12 11 6 6" />
+          </svg>
+          <span>CPP&nbsp;·&nbsp;OJ</span>
+        </a>
+
+        <nav class="nav" aria-label="主导航">
+          <a href="#top" class="nav__item is-active" data-nav>首页</a>
+          <a href="#features" class="nav__item" data-nav>特性</a>
+          <a href="#process" class="nav__item" data-nav>流程</a>
+          <a href="#showcase" class="nav__item" data-nav>代码</a>
+          <a href="#faq" class="nav__item" data-nav>关于</a>
+          <a href="/problem_list.html" class="nav__item">题库</a>
+        </nav>
+
+        <div class="user-menu" id="userMenu">
+          <a href="/login.html" class="user-menu__link">登录</a>
+          <a href="/register.html" class="user-menu__link user-menu__link--primary">注册</a>
+        </div>
+      </div>
+    </header>
+
+    <!-- ========== Hero ========== -->
+    <section class="hero" aria-label="系统介绍">
+      <div class="hero__bg" aria-hidden="true">
+        <div class="hero__bg-grid"></div>
+        <div class="hero__bg-glow"></div>
+      </div>
+
+      <div class="hero__container">
+        <div class="hero__content">
+          <span class="eyebrow">
+            <span class="dot dot--live" aria-hidden="true"></span>
+            <span>v1.0 · 教学 / 训练平台</span>
+          </span>
+
+          <h1 class="hero__title">
+            为 C++ 学习者<br>
+            <em>精心打造</em>的<br>
+            在线评测系统
+          </h1>
+
+          <p class="hero__sub">
+            简洁、现代、高性能。从基础语法到算法竞赛，<br>
+            在浏览器中完成编辑、编译、运行与评测的完整闭环。
+          </p>
+
+          <div class="hero__ctas">
+            <a href="/register.html" class="btn btn--primary btn--large">
+              <span>立即开始</span>
+              <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="14" height="14" stroke-width="2">
+                <path d="M5 12h14" />
+                <path d="m12 5 7 7-7 7" />
+              </svg>
+            </a>
+            <a href="/problem_list.html" class="btn btn--ghost btn--large">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
+                <path d="M4 6h16"/>
+                <path d="M4 12h16"/>
+                <path d="M4 18h10"/>
+              </svg>
+              <span>浏览题库</span>
+            </a>
+          </div>
+
+          <div class="hero__meta">
+            <div class="hero__meta-item">
+              <span class="hero__meta-dot" aria-hidden="true"></span>
+              <span>系统在线</span>
+            </div>
+            <span class="hero__meta-sep" aria-hidden="true">/</span>
+            <div class="hero__meta-item">
+              <span class="hero__meta-mono">C++17</span>
+            </div>
+            <span class="hero__meta-sep" aria-hidden="true">/</span>
+            <div class="hero__meta-item">
+              <span>5s 超时</span>
+            </div>
+            <span class="hero__meta-sep" aria-hidden="true">/</span>
+            <div class="hero__meta-item">
+              <span>进程级隔离</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero__visual">
+          <div class="code-window">
+            <div class="code-window__chrome">
+              <div class="code-window__dots" aria-hidden="true">
+                <span></span><span></span><span></span>
+              </div>
+              <div class="code-window__tab">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" width="12" height="12" aria-hidden="true">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                <span>main.cpp</span>
+              </div>
+              <div class="code-window__verdict">
+                <span class="verdict-dot" aria-hidden="true"></span>
+                <span>AC</span>
+              </div>
+            </div>
+
+            <div class="code-window__body">
+              <div class="code-pre">
+                <div class="code-line">
+                  <span class="code-line__ln">1</span>
+                  <span class="code-line__code"><span class="tok-pp">#include</span> <span class="tok-str">&lt;iostream&gt;</span></span>
+                </div>
+                <div class="code-line">
+                  <span class="code-line__ln">2</span>
+                  <span class="code-line__code"><span class="tok-pp">using namespace</span> std;</span>
+                </div>
+                <div class="code-line">
+                  <span class="code-line__ln">3</span>
+                  <span class="code-line__code">&nbsp;</span>
+                </div>
+                <div class="code-line">
+                  <span class="code-line__ln">4</span>
+                  <span class="code-line__code"><span class="tok-typ">int</span> <span class="tok-fn">main</span>() {</span>
+                </div>
+                <div class="code-line">
+                  <span class="code-line__ln">5</span>
+                  <span class="code-line__code">    <span class="tok-typ">int</span> a, b;</span>
+                </div>
+                <div class="code-line">
+                  <span class="code-line__ln">6</span>
+                  <span class="code-line__code">    cin &gt;&gt; a &gt;&gt; b;</span>
+                </div>
+                <div class="code-line">
+                  <span class="code-line__ln">7</span>
+                  <span class="code-line__code">    cout &lt;&lt; a + b &lt;&lt; endl;</span>
+                </div>
+                <div class="code-line">
+                  <span class="code-line__ln">8</span>
+                  <span class="code-line__code">    <span class="tok-kw">return</span> <span class="tok-num">0</span>;</span>
+                </div>
+                <div class="code-line">
+                  <span class="code-line__ln">9</span>
+                  <span class="code-line__code">}<span class="code-cursor" aria-hidden="true"></span></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="code-window__statusbar">
+              <div class="code-window__statusbar-left">
+                <span class="status-dot status-dot--ok" aria-hidden="true"></span>
+                <span>Compiled · 0.6s</span>
+              </div>
+              <div class="code-window__statusbar-right">
+                <span>C++17</span>
+                <span class="sep">·</span>
+                <span>9 lines</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="code-window__float code-window__float--top" aria-hidden="true">
+            <div class="float-card">
+              <div class="float-card__label">输入</div>
+              <div class="float-card__body">
+                <pre><span>3</span> <span>5</span></pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="code-window__float code-window__float--bottom" aria-hidden="true">
+            <div class="float-card">
+              <div class="float-card__label">输出</div>
+              <div class="float-card__body">
+                <pre><span class="float-card__hl">8</span></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <a href="#stats" class="hero__scroll" aria-label="向下滚动">
+        <span>向下滚动</span>
+        <span class="hero__scroll-line" aria-hidden="true"></span>
+      </a>
+    </section>
+
+    <!-- ========== Stats ========== -->
+    <section class="stats" id="stats" aria-label="系统指标">
+      <div class="stats__container">
+        <div class="stats__item">
+          <div class="stats__value" data-count="problems">—</div>
+          <div class="stats__label">精选题目</div>
+        </div>
+        <div class="stats__divider" aria-hidden="true"></div>
+        <div class="stats__item">
+          <div class="stats__value"><span class="stats__prefix">≤</span>5<span class="stats__suffix">s</span></div>
+          <div class="stats__label">评测响应</div>
+        </div>
+        <div class="stats__divider" aria-hidden="true"></div>
+        <div class="stats__item">
+          <div class="stats__value">3</div>
+          <div class="stats__label">难度等级</div>
+        </div>
+        <div class="stats__divider" aria-hidden="true"></div>
+        <div class="stats__item">
+          <div class="stats__value">100<span class="stats__suffix">%</span></div>
+          <div class="stats__label">开源透明</div>
+        </div>
+        <div class="stats__divider" aria-hidden="true"></div>
+        <div class="stats__item">
+          <div class="stats__value">
+            <span class="stats__dot" aria-hidden="true"></span>
+            <span>在线</span>
+          </div>
+          <div class="stats__label">系统状态</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== Features ========== -->
+    <section class="section features" id="features" aria-label="核心特性">
+      <div class="section__container">
+        <header class="section-header" data-reveal>
+          <span class="section-header__num" aria-hidden="true">01</span>
+          <span class="section-header__eyebrow">
+            <span class="dot" aria-hidden="true"></span>
+            <span>核心特性</span>
+          </span>
+          <h2 class="section-header__title">为认真<em>学习</em>的 C++ 程序员而设计</h2>
+          <p class="section-header__sub">从编译原理到评测体验，每一处细节都为更好的练习服务。</p>
+        </header>
+
+        <div class="features__grid">
+          <article class="feature-card" data-reveal>
+            <div class="feature-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+            </div>
+            <h3 class="feature-card__title">在线编译运行</h3>
+            <p class="feature-card__desc">基于 fork + exec 模型，在服务端沙盒中真实编译并执行你的 C++ 代码，秒级返回结果。</p>
+            <div class="feature-card__meta">g++ · C++17</div>
+          </article>
+
+          <article class="feature-card" data-reveal>
+            <div class="feature-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5">
+                <rect x="3" y="11" width="18" height="11" rx="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </div>
+            <h3 class="feature-card__title">进程级隔离</h3>
+            <p class="feature-card__desc">每次提交都在独立进程中运行，配合 CPU / 内存 / 时间限制，确保系统稳定与公平评测。</p>
+            <div class="feature-card__meta">setrlimit · ulimit</div>
+          </article>
+
+          <article class="feature-card" data-reveal>
+            <div class="feature-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+            </div>
+            <h3 class="feature-card__title">实时评测反馈</h3>
+            <p class="feature-card__desc">逐用例比对输出，精确返回 AC / WA / TLE / RE / CE 等结果，让你快速定位问题所在。</p>
+            <div class="feature-card__meta">stdout diff</div>
+          </article>
+
+          <article class="feature-card" data-reveal>
+            <div class="feature-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5">
+                <line x1="8" y1="6" x2="21" y2="6"/>
+                <line x1="8" y1="12" x2="21" y2="12"/>
+                <line x1="8" y1="18" x2="21" y2="18"/>
+                <line x1="3" y1="6" x2="3.01" y2="6"/>
+                <line x1="3" y1="12" x2="3.01" y2="12"/>
+                <line x1="3" y1="18" x2="3.01" y2="18"/>
+              </svg>
+            </div>
+            <h3 class="feature-card__title">三级难度题库</h3>
+            <p class="feature-card__desc">题目按 Easy / Medium / Hard 难度递进，从语法练习到算法挑战，覆盖完整学习路径。</p>
+            <div class="feature-card__meta">Easy · Medium · Hard</div>
+          </article>
+
+          <article class="feature-card" data-reveal>
+            <div class="feature-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="9" y1="15" x2="15" y2="15"/>
+                <line x1="12" y1="12" x2="12" y2="18"/>
+              </svg>
+            </div>
+            <h3 class="feature-card__title">题目可视化管理</h3>
+            <p class="feature-card__desc">管理员可在 Web 后台直接新增、编辑、删除题目与测试用例，无需触碰数据库。</p>
+            <div class="feature-card__meta">CRUD UI</div>
+          </article>
+
+          <article class="feature-card" data-reveal>
+            <div class="feature-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+            </div>
+            <h3 class="feature-card__title">Session 安全认证</h3>
+            <p class="feature-card__desc">基于 Cookie + 服务端 Session 的登录态管理，bcrypt 密码哈希，区分普通用户与管理员。</p>
+            <div class="feature-card__meta">Session · bcrypt</div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== Process ========== -->
+    <section class="section process" id="process" aria-label="使用流程">
+      <div class="section__container">
+        <header class="section-header" data-reveal>
+          <span class="section-header__num" aria-hidden="true">02</span>
+          <span class="section-header__eyebrow">
+            <span class="dot" aria-hidden="true"></span>
+            <span>使用流程</span>
+          </span>
+          <h2 class="section-header__title">三步<em>完成</em>一次提交</h2>
+          <p class="section-header__sub">从注册到拿到 AC，没有多余操作。</p>
+        </header>
+
+        <ol class="process__steps">
+          <li class="step" data-reveal>
+            <div class="step__num">01</div>
+            <div class="step__body">
+              <h3 class="step__title">选择题目</h3>
+              <p class="step__desc">从题库列表中挑选一道题，查看描述、样例与提示，难度一目了然。</p>
+              <div class="step__tags">
+                <span class="step__tag">题库浏览</span>
+                <span class="step__tag">难度筛选</span>
+                <span class="step__tag">关键字搜索</span>
+              </div>
+            </div>
+            <div class="step__arrow" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5">
+                <path d="M5 12h14"/>
+                <path d="m12 5 7 7-7 7"/>
+              </svg>
+            </div>
+          </li>
+
+          <li class="step" data-reveal>
+            <div class="step__num">02</div>
+            <div class="step__body">
+              <h3 class="step__title">在线编码</h3>
+              <p class="step__desc">使用浏览器内置的代码编辑器编写 C++ 代码，支持自定义测试用例，先试后交。</p>
+              <div class="step__tags">
+                <span class="step__tag">在线编辑器</span>
+                <span class="step__tag">代码模板</span>
+                <span class="step__tag">自定义用例</span>
+              </div>
+            </div>
+            <div class="step__arrow" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5">
+                <path d="M5 12h14"/>
+                <path d="m12 5 7 7-7 7"/>
+              </svg>
+            </div>
+          </li>
+
+          <li class="step" data-reveal>
+            <div class="step__num">03</div>
+            <div class="step__body">
+              <h3 class="step__title">提交评测</h3>
+              <p class="step__desc">点击提交，服务端编译运行并比对所有用例，结果与耗时即时返回，可直接定位错误。</p>
+              <div class="step__tags">
+                <span class="step__tag">秒级响应</span>
+                <span class="step__tag">详细结果</span>
+                <span class="step__tag">性能统计</span>
+              </div>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ========== Showcase ========== -->
+    <section class="section showcase" id="showcase" aria-label="代码与评测示例">
+      <div class="section__container">
+        <header class="section-header" data-reveal>
+          <span class="section-header__num" aria-hidden="true">03</span>
+          <span class="section-header__eyebrow">
+            <span class="dot" aria-hidden="true"></span>
+            <span>评测示例</span>
+          </span>
+          <h2 class="section-header__title">不止于<em>对错</em>，而是完整的反馈</h2>
+          <p class="section-header__sub">每一次提交都会得到结构化、可读的评测报告。</p>
+        </header>
+
+        <div class="showcase__grid" data-reveal>
+          <div class="showcase__code">
+            <div class="code-window">
+              <div class="code-window__chrome">
+                <div class="code-window__dots" aria-hidden="true">
+                  <span></span><span></span><span></span>
+                </div>
+                <div class="code-window__tab">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" width="12" height="12" aria-hidden="true">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                  </svg>
+                  <span>sum.cpp</span>
+                </div>
+                <div class="code-window__verdict code-window__verdict--ok">
+                  <span class="verdict-dot" aria-hidden="true"></span>
+                  <span>AC</span>
+                </div>
+              </div>
+              <div class="code-window__body">
+                <div class="code-pre">
+                  <div class="code-line"><span class="code-line__ln">1</span><span class="code-line__code"><span class="tok-cm">// 求两数之和 · A+B</span></span></div>
+                  <div class="code-line"><span class="code-line__ln">2</span><span class="code-line__code"><span class="tok-pp">#include</span> <span class="tok-str">&lt;iostream&gt;</span></span></div>
+                  <div class="code-line"><span class="code-line__ln">3</span><span class="code-line__code">&nbsp;</span></div>
+                  <div class="code-line"><span class="code-line__ln">4</span><span class="code-line__code"><span class="tok-kw">using</span> <span class="tok-kw">namespace</span> std;</span></div>
+                  <div class="code-line"><span class="code-line__ln">5</span><span class="code-line__code">&nbsp;</span></div>
+                  <div class="code-line"><span class="code-line__ln">6</span><span class="code-line__code"><span class="tok-typ">int</span> <span class="tok-fn">main</span>() {</span></div>
+                  <div class="code-line"><span class="code-line__ln">7</span><span class="code-line__code">    <span class="tok-typ">int</span> a, b;</span></div>
+                  <div class="code-line"><span class="code-line__ln">8</span><span class="code-line__code">    cin &gt;&gt; a &gt;&gt; b;</span></div>
+                  <div class="code-line"><span class="code-line__ln">9</span><span class="code-line__code">    cout &lt;&lt; a + b &lt;&lt; endl;</span></div>
+                  <div class="code-line"><span class="code-line__ln">10</span><span class="code-line__code">    <span class="tok-kw">return</span> <span class="tok-num">0</span>;</span></div>
+                  <div class="code-line"><span class="code-line__ln">11</span><span class="code-line__code">}</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="showcase__result">
+            <div class="result-card">
+              <div class="result-card__head">
+                <div class="result-card__verdict">
+                  <span class="verdict-dot verdict-dot--ok" aria-hidden="true"></span>
+                  <span>Accepted</span>
+                </div>
+                <div class="result-card__cases">4 / 4</div>
+              </div>
+
+              <div class="result-card__cases-list">
+                <div class="result-row">
+                  <span class="result-row__idx">#1</span>
+                  <span class="result-row__tag result-row__tag--ok">AC</span>
+                  <span class="result-row__time">8ms</span>
+                </div>
+                <div class="result-row">
+                  <span class="result-row__idx">#2</span>
+                  <span class="result-row__tag result-row__tag--ok">AC</span>
+                  <span class="result-row__time">12ms</span>
+                </div>
+                <div class="result-row">
+                  <span class="result-row__idx">#3</span>
+                  <span class="result-row__tag result-row__tag--ok">AC</span>
+                  <span class="result-row__time">10ms</span>
+                </div>
+                <div class="result-row">
+                  <span class="result-row__idx">#4</span>
+                  <span class="result-row__tag result-row__tag--ok">AC</span>
+                  <span class="result-row__time">11ms</span>
+                </div>
+              </div>
+
+              <div class="result-card__stats">
+                <div class="result-stat">
+                  <div class="result-stat__label">耗时</div>
+                  <div class="result-stat__value">12<span class="result-stat__unit">ms</span></div>
+                </div>
+                <div class="result-stat">
+                  <div class="result-stat__label">内存</div>
+                  <div class="result-stat__value">1.2<span class="result-stat__unit">MB</span></div>
+                </div>
+                <div class="result-stat">
+                  <div class="result-stat__label">编译</div>
+                  <div class="result-stat__value">0.6<span class="result-stat__unit">s</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== Tech Stack ========== -->
+    <section class="section stack" id="stack" aria-label="技术栈">
+      <div class="section__container">
+        <header class="section-header" data-reveal>
+          <span class="section-header__num" aria-hidden="true">04</span>
+          <span class="section-header__eyebrow">
+            <span class="dot" aria-hidden="true"></span>
+            <span>技术栈</span>
+          </span>
+          <h2 class="section-header__title">简洁而<em>现代</em>的工程实践</h2>
+          <p class="section-header__sub">没有花哨的依赖，每一层都为可读性与可维护性服务。</p>
+        </header>
+
+        <div class="stack__grid">
+          <div class="tech-card" data-reveal>
+            <div class="tech-card__head">
+              <span class="tech-card__tag">后端</span>
+              <span class="tech-card__layer">Server</span>
+            </div>
+            <h3 class="tech-card__name">C++17</h3>
+            <p class="tech-card__desc">原生 C++ 实现，无重型框架。配合 cpp-httplib 构建轻量、高性能的 HTTP 服务。</p>
+            <div class="tech-card__list">
+              <span class="tech-card__chip">cpp-httplib</span>
+              <span class="tech-card__chip">fork / exec</span>
+              <span class="tech-card__chip">setrlimit</span>
+            </div>
+          </div>
+
+          <div class="tech-card" data-reveal>
+            <div class="tech-card__head">
+              <span class="tech-card__tag">存储</span>
+              <span class="tech-card__layer">Data</span>
+            </div>
+            <h3 class="tech-card__name">MySQL 8.0</h3>
+            <p class="tech-card__desc">题目、测试用例、用户数据均存于 MySQL，配套连接池管理，简单可靠的存储方案。</p>
+            <div class="tech-card__list">
+              <span class="tech-card__chip">InnoDB</span>
+              <span class="tech-card__chip">utf8mb4</span>
+              <span class="tech-card__chip">连接池</span>
+            </div>
+          </div>
+
+          <div class="tech-card" data-reveal>
+            <div class="tech-card__head">
+              <span class="tech-card__tag">前端</span>
+              <span class="tech-card__layer">Client</span>
+            </div>
+            <h3 class="tech-card__name">原生 Web</h3>
+            <p class="tech-card__desc">零构建工具，HTML / CSS / JavaScript 全部原生。加载快、可读性高、易于二次开发。</p>
+            <div class="tech-card__list">
+              <span class="tech-card__chip">HTML5</span>
+              <span class="tech-card__chip">CSS3</span>
+              <span class="tech-card__chip">Vanilla JS</span>
+            </div>
+          </div>
+
+          <div class="tech-card" data-reveal>
+            <div class="tech-card__head">
+              <span class="tech-card__tag">设计</span>
+              <span class="tech-card__layer">Type</span>
+            </div>
+            <h3 class="tech-card__name">编辑级排版</h3>
+            <p class="tech-card__desc">Inter / Fraunces / JetBrains Mono 配合中文 LXGW 霞鹜文楷，呈现克制而精致的版式。</p>
+            <div class="tech-card__list">
+              <span class="tech-card__chip">Inter</span>
+              <span class="tech-card__chip">Fraunces</span>
+              <span class="tech-card__chip">JetBrains Mono</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== FAQ ========== -->
+    <section class="section faq" id="faq" aria-label="常见问题">
+      <div class="section__container section__container--narrow">
+        <header class="section-header" data-reveal>
+          <span class="section-header__num" aria-hidden="true">05</span>
+          <span class="section-header__eyebrow">
+            <span class="dot" aria-hidden="true"></span>
+            <span>常见问题</span>
+          </span>
+          <h2 class="section-header__title">关于平台的<em>几个</em>问题</h2>
+          <p class="section-header__sub">开始之前，先看看这些常见疑问。</p>
+        </header>
+
+        <div class="faq__list" data-reveal>
+          <details class="faq-item">
+            <summary class="faq-item__q">
+              <span class="faq-item__q-text">支持哪些编程语言？</span>
+              <span class="faq-item__icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="faq-item__a">
+              <p>当前版本专注于 <strong>C++（基于 g++，支持 C++17 标准）</strong>。这是出于教学场景与评测一致性的考虑 —— 单一语言能让评测沙盒、编译参数与判题逻辑更可预期。</p>
+            </div>
+          </details>
+
+          <details class="faq-item">
+            <summary class="faq-item__q">
+              <span class="faq-item__q-text">我的代码与提交记录会被保存吗？</span>
+              <span class="faq-item__icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="faq-item__a">
+              <p>当前阶段<strong>不持久化</strong>用户提交的代码与提交记录。题目、测试用例与账号信息存储在 MySQL 中，但运行历史与代码本身仅保留在浏览器会话内。后续计划接入 Redis / 数据库做提交历史回看。</p>
+            </div>
+          </details>
+
+          <details class="faq-item">
+            <summary class="faq-item__q">
+              <span class="faq-item__q-text">系统如何保证评测安全？</span>
+              <span class="faq-item__icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="faq-item__a">
+              <p>每次提交都在<strong>独立子进程</strong>中运行，配合 <code>setrlimit</code> 设置 CPU 时间、内存与输出体积上限。这是一种<strong>进程级隔离</strong>方案，对教学/训练规模足够安全；如需更高强度，可后续升级为容器级隔离。</p>
+            </div>
+          </details>
+
+          <details class="faq-item">
+            <summary class="faq-item__q">
+              <span class="faq-item__q-text">评测结果有哪几种？</span>
+              <span class="faq-item__icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="faq-item__a">
+              <p>系统会逐用例比对实际输出与期望输出，给出以下几种判题结果：</p>
+              <ul class="faq-item__list">
+                <li><span class="verdict-pill verdict-pill--ok">AC</span> Accepted — 答案正确</li>
+                <li><span class="verdict-pill verdict-pill--wa">WA</span> Wrong Answer — 答案错误</li>
+                <li><span class="verdict-pill verdict-pill--tle">TLE</span> Time Limit Exceeded — 运行超时</li>
+                <li><span class="verdict-pill verdict-pill--re">RE</span> Runtime Error — 运行时错误</li>
+                <li><span class="verdict-pill verdict-pill--ce">CE</span> Compile Error — 编译失败</li>
+              </ul>
+            </div>
+          </details>
+
+          <details class="faq-item">
+            <summary class="faq-item__q">
+              <span class="faq-item__q-text">如何成为管理员？</span>
+              <span class="faq-item__icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="faq-item__a">
+              <p>普通用户注册即可登录使用。管理员账号需由<strong>已有管理员</strong>在管理后台手动创建，或由运维同学直接在 MySQL 中将 <code>users.role</code> 字段更新为 <code>'admin'</code>，之后便可访问 <code>/admin.html</code> 进行题目管理。</p>
+            </div>
+          </details>
+
+          <details class="faq-item">
+            <summary class="faq-item__q">
+              <span class="faq-item__q-text">是否提供 API 接入？</span>
+              <span class="faq-item__icon" aria-hidden="true">+</span>
+            </summary>
+            <div class="faq-item__a">
+              <p>所有页面功能均基于 <code>/api/*</code> 下的 JSON REST 接口实现，本身就是开放 API。未来会补充更详细的接口文档与认证机制（Session / Token），便于第三方工具或脚本接入。</p>
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== CTA ========== -->
+    <section class="cta" aria-label="开始使用">
+      <div class="cta__container">
+        <div class="cta__inner">
+          <span class="section-header__num" aria-hidden="true">06</span>
+          <h2 class="cta__title">
+            准备好开启<br>你的 C++ <em>刷题之旅</em>了吗？
+          </h2>
+          <p class="cta__sub">
+            注册一个账号，从第一道 <code>Hello, World!</code> 开始。<br>
+            也可以直接浏览题库，先看看题目的样子。
+          </p>
+          <div class="cta__actions">
+            <a href="/register.html" class="btn btn--primary btn--large">
+              <span>创建账号</span>
+              <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="14" height="14" stroke-width="2">
+                <path d="M5 12h14" />
+                <path d="m12 5 7 7-7 7" />
+              </svg>
+            </a>
+            <a href="/problem_list.html" class="btn btn--ghost btn--large">
+              <span>先看看题库</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== Footer ========== -->
+    <footer class="landing-footer" role="contentinfo">
+      <div class="landing-footer__container">
+        <div class="landing-footer__main">
+          <div class="landing-footer__brand">
+            <a href="/index.html" class="wordmark" aria-label="CPP OJ — 首页">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 19h8" />
+                <path d="m4 17 6-6-6-6" />
+                <path d="m12 11 6 6" />
+              </svg>
+              <span>CPP&nbsp;·&nbsp;OJ</span>
+            </a>
+            <p class="landing-footer__tagline">
+              为 C++ 学习者<br>精心打造的在线评测系统。
+            </p>
+            <div class="landing-footer__status">
+              <span class="status-dot status-dot--ok" aria-hidden="true"></span>
+              <span>All systems operational</span>
+            </div>
+          </div>
+
+          <nav class="landing-footer__nav" aria-label="页脚导航">
+            <div class="footer-col">
+              <h4 class="footer-col__title">平台</h4>
+              <ul class="footer-col__list">
+                <li><a href="#features">核心特性</a></li>
+                <li><a href="#process">使用流程</a></li>
+                <li><a href="#showcase">评测示例</a></li>
+                <li><a href="#faq">常见问题</a></li>
+              </ul>
+            </div>
+
+            <div class="footer-col">
+              <h4 class="footer-col__title">题库</h4>
+              <ul class="footer-col__list">
+                <li><a href="/problem_list.html">全部题目</a></li>
+                <li><a href="/problem_list.html?difficulty=Easy">简单 · Easy</a></li>
+                <li><a href="/problem_list.html?difficulty=Medium">中等 · Medium</a></li>
+                <li><a href="/problem_list.html?difficulty=Hard">困难 · Hard</a></li>
+              </ul>
+            </div>
+
+            <div class="footer-col">
+              <h4 class="footer-col__title">账户</h4>
+              <ul class="footer-col__list">
+                <li><a href="/login.html">登录</a></li>
+                <li><a href="/register.html">注册</a></li>
+                <li><a href="/admin.html">管理后台</a></li>
+              </ul>
+            </div>
+          </nav>
+        </div>
+
+        <div class="landing-footer__bottom">
+          <p class="landing-footer__caption">
+            <span>Crafted with care</span>
+            <span class="sep" aria-hidden="true">·</span>
+            <span>v1.0.0</span>
+            <span class="sep" aria-hidden="true">·</span>
+            <span>© <span id="year">2026</span> CPP·OJ</span>
+          </p>
+          <p class="landing-footer__caption">
+            <span>Built with C++17 · MySQL 8.0 · vanilla web</span>
+          </p>
+        </div>
+      </div>
+    </footer>
+
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="/js/api.js?v=7"></script>
+  <script src="/js/landing.js?v=1"></script>
+</body>
+</html>
