@@ -1007,13 +1007,11 @@
     if (resetBtn) {
       resetBtn.addEventListener('click', () => {
         if (!state.editor) return;
-        // The user expects reset to revert to the *original* problem
-        // template (or the DEFAULT_CPP fallback). Recover that here because
-        // state.initialCode may have been overwritten with the user's draft
-        // when the editor was hydrated from sessionStorage.
-        const originalCode = (state.problem && (state.problem.template || '').trim())
-          ? state.problem.template
-          : DEFAULT_CPP;
+        // Reset always reverts to the standard DEFAULT_CPP template so the
+        // user gets the "在这里编写你的 C++ 代码" placeholder back, regardless
+        // of what the problem's `template` field contains (which may be a
+        // specific runnable solution like "两数之和").
+        const originalCode = DEFAULT_CPP;
         // Suppress the auto-save around ALL editor mutations triggered by
         // reset (setValue, then setRange inside placeCursorOnComment, etc.)
         // so sessionStorage stays clean. The flag is restored AFTER every

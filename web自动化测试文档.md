@@ -505,7 +505,7 @@ if (process.env.TEST_TEMP_PROBLEM_ID) {
 | **测试目的** | 验证重置逻辑 |
 | **前置条件** | `admin` 已登录；`beforeEach` 已清空 sessionStorage；进入 `id=${TEST_PROBLEM_ID}` 详情页；编辑器已被修改 |
 | **测试步骤** | 1. 修改编辑器内容为 `garbage`<br>2. 点击 `#resetBtn` |
-| **预期结果** | 1. 编辑器内容恢复为初始模板（或服务端返回的 `template`）<br>2. `#resultArea` 清空<br>3. 焦点回到编辑器<br>4. `sessionStorage.oj_editor_code_{id}` 被删除 |
+| **预期结果** | 1. 编辑器内容恢复为标准代码模板 `DEFAULT_CPP`（即 `// 在这里编写你的 C++ 代码` 占位符版本），**不**使用题目自身的 `template` 字段<br>2. `#resultArea` 清空<br>3. 焦点回到编辑器<br>4. `sessionStorage.oj_editor_code_{id}` 被删除 |
 
 #### TC-032: 代码编辑后重新加载页面
 
