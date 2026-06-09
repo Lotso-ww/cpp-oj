@@ -1014,9 +1014,11 @@
         const originalCode = (state.problem && (state.problem.template || '').trim())
           ? state.problem.template
           : DEFAULT_CPP;
-        // Suppress the auto-save that setValue would otherwise schedule,
-        // so sessionStorage stays clean (matches the user's expectation of
-        // "reset" = "go back to a fresh template").
+        // Suppress the auto-save around ALL editor mutations triggered by
+        // reset (setValue, then setRange inside placeCursorOnComment, etc.)
+        // so sessionStorage stays clean. The flag is restored AFTER every
+        // mutation has been queued; the change handler also clears any
+        // pending timer to be safe.
         state.suppressAutoSave = true;
         if (typeof state.cancelAutoSave === 'function') {
           state.cancelAutoSave();
@@ -1025,10 +1027,17 @@
         state.initialCode = originalCode;
         const codeKey = 'oj_editor_code_' + (state.problemId || 'unknown');
         try { sessionStorage.removeItem(codeKey); } catch (_) {}
-        // Re-enable auto-save for the user's next edit.
-        state.suppressAutoSave = false;
-        // Place cursor on the comment line so user can immediately type
+        // Place cursor on the comment line so user can immediately type.
+        // setRange may fire its own change event; we keep suppressAutoSave
+        // true until after that.
         placeCursorOnComment(state.editor, originalCode);
+        // Cancel any timer the previous mutations may have scheduled, then
+        // remove again to win the race, then re-enable auto-save.
+        if (typeof state.cancelAutoSave === 'function') {
+          state.cancelAutoSave();
+        }
+        try { sessionStorage.removeItem(codeKey); } catch (_) {}
+        state.suppressAutoSave = false;
         clearResult();
         if (state.editor && state.editor.focus) state.editor.focus();
       });
