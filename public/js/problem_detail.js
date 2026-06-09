@@ -356,8 +356,11 @@
       }
     }
 
-    // Auto-save on every change
+    // Auto-save on every change. Suppressable via state.suppressAutoSave so
+    // operations like "reset" can swap the editor value without writing it
+    // back to sessionStorage.
     state.saveTimer = null;
+    state.suppressAutoSave = false;
     state.cancelAutoSave = () => {
       if (state.saveTimer) {
         clearTimeout(state.saveTimer);
@@ -366,6 +369,7 @@
     };
     editor.session.on('change', () => {
       state.cancelAutoSave();
+      if (state.suppressAutoSave) return;
       state.saveTimer = setTimeout(() => {
         try { sessionStorage.setItem(codeKey, editor.getValue()); } catch (_) {}
         state.saveTimer = null;
@@ -1003,11 +1007,6 @@
     if (resetBtn) {
       resetBtn.addEventListener('click', () => {
         if (!state.editor) return;
-        // Cancel any pending auto-save first so the change triggered by
-        // setValue below does not re-write the draft 200ms later.
-        if (typeof state.cancelAutoSave === 'function') {
-          state.cancelAutoSave();
-        }
         // The user expects reset to revert to the *original* problem
         // template (or the DEFAULT_CPP fallback). Recover that here because
         // state.initialCode may have been overwritten with the user's draft
@@ -1015,11 +1014,19 @@
         const originalCode = (state.problem && (state.problem.template || '').trim())
           ? state.problem.template
           : DEFAULT_CPP;
+        // Suppress the auto-save that setValue would otherwise schedule,
+        // so sessionStorage stays clean (matches the user's expectation of
+        // "reset" = "go back to a fresh template").
+        state.suppressAutoSave = true;
+        if (typeof state.cancelAutoSave === 'function') {
+          state.cancelAutoSave();
+        }
         state.editor.setValue(originalCode, -1);
         state.initialCode = originalCode;
-        // Also clear the saved code so the next page load starts fresh
         const codeKey = 'oj_editor_code_' + (state.problemId || 'unknown');
         try { sessionStorage.removeItem(codeKey); } catch (_) {}
+        // Re-enable auto-save for the user's next edit.
+        state.suppressAutoSave = false;
         // Place cursor on the comment line so user can immediately type
         placeCursorOnComment(state.editor, originalCode);
         clearResult();
