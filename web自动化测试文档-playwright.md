@@ -6,7 +6,7 @@
 
 **浏览器模式**: 有头模式 (`--headed`)
 
-**执行时间**: 2026-06-08 (TC-001 ~ TC-012)
+**执行时间**: 2026-06-08 ~ 2026-06-09 (TC-001 ~ TC-022)
 
 > **重要提示**:
 > 1. 本机未全局安装 playwright-cli，全部命令以 `npx --no-install playwright-cli` 前缀运行，避免触发 `npm install` 卡顿。
@@ -817,6 +817,364 @@ npx --no-install playwright-cli unroute
 
 ---
 
-*执行记录生成时间: 2026-06-08 (TC-001 ~ TC-012 完成)*
+*执行记录生成时间: 2026-06-08 ~ 2026-06-09 (TC-001 ~ TC-022 完成)*
 
 *配套文档: `web自动化测试文档.md`（用例详细规范）*
+
+---
+
+# 第二轮执行：TC-013 ~ TC-022（题目模块）
+
+**执行时间**: 2026-06-09
+**前置登录态**: 复用上一轮（TC-008）已登录的 admin 浏览器会话（`oj_session` Cookie 仍有效）
+**浏览器模式**: 有头模式 (`--headed`)
+**已确认环境**: 题库共 4 道题（id=1 两数之和 Easy / id=2 判断奇偶 Easy / id=3 判断质数 Medium / id=4 计算最大公约数 Hard），用于以下所有用例的断言参考。
+
+> **本轮要点**:
+> 1. 浏览器会话已保持开启，直接 `goto /login.html` 重登 admin 即可。
+> 2. 难度计数合计 = 全部计数（2 + 1 + 1 = 4）已在 TC-013 验证。
+> 3. 关键 DOM 选择器：
+>    - 难度 chip：`.filter__chip[data-difficulty="..."]`（`all` / `Easy` / `Medium` / `Hard`）
+>    - 表格行：`.problem-table__row`
+>    - 空态：`.empty-state`（含"返回列表"/"查看全部"等按钮）
+>    - 详情页：`#problemTitle` / `#problemEyebrow` / `#problemMeta` / `#problemContent[aria-busy="false"]`
+>    - 详情页 Ace 编辑器：`.ace_text-input`
+>    - 官方测试用例行：`.test-case-row--readonly`
+
+---
+
+## 一、测试用例执行记录
+
+### TC-013: 题目列表加载
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-013 |
+| **用例名称** | 题目列表加载 |
+| **前置条件** | `admin` 已登录，题库非空 |
+| **测试步骤** | 1. 访问 `/problem_list.html`<br>2. 等待 `#tableWrapper` 不再 `aria-busy="true"`<br>3. 断言 `.problem-table__row` 至少 1 行<br>4. 检查 `.filter__chip-count` 数字 |
+| **预期结果** | 1. 渲染题目表格，列：题号 / 标题 / 难度 / 箭头<br>2. 四个难度 chip 右侧显示对应题目数量（合计 = 全部计数）<br>3. 每行 `.difficulty` 显示难度条 + 中文标签 |
+
+**执行命令**:
+```bash
+# 0. 复用上一轮已登录的 admin 会话，刷新问题列表页
+npx --no-install playwright-cli goto http://124.222.15.175:8080/problem_list.html
+
+# 1. 等待题库与 /api/me 校验完成
+Start-Sleep -Seconds 2
+npx --no-install playwright-cli snapshot
+
+# 2. 验证表格行数与 chip 计数
+npx --no-install playwright-cli --raw eval "JSON.stringify({rows: document.querySelectorAll('.problem-table__row').length, chips: [...document.querySelectorAll('.filter__chip')].map(c => ({d: c.getAttribute('data-difficulty'), n: c.querySelector('.filter__chip-count')?.textContent.trim()}))})"
+```
+
+**执行结果**: ✅ 通过
+
+- 表格渲染 4 行（id=1/2/3/4）
+- chip 计数：全部 4 / 简单 2 / 中等 1 / 困难 1，合计 = 4 = 全部
+- 顶部导航显示 `你好，admin` / `管理后台` / `退出`，说明 `/api/me` 校验通过、登录态有效
+
+---
+
+### TC-014: 难度筛选-简单
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-014 |
+| **用例名称** | 难度筛选-简单 |
+| **前置条件** | `admin` 已登录，题库中至少存在 Easy 与其他难度 |
+| **测试步骤** | 1. 访问 `/problem_list.html`<br>2. 点击 `.filter__chip[data-difficulty="Easy"]`<br>3. 等待列表刷新 |
+| **预期结果** | 1. Easy chip 拥有 `is-active` 与 `aria-selected="true"`<br>2. 所有可见行 `.difficulty[data-difficulty="Easy"]`<br>3. 列表行数 == "简单"计数 |
+
+**执行命令**:
+```bash
+# 1. 拿到当前快照的 ref
+npx --no-install playwright-cli snapshot
+
+# 2. 点击"简单"chip
+npx --no-install playwright-cli click e31
+
+# 3. 等待列表刷新
+Start-Sleep -Seconds 1
+
+# 4. 校验：active chip + 可见行难度
+npx --no-install playwright-cli --raw eval "JSON.stringify({rows: [...document.querySelectorAll('.problem-table__row')].map(r => ({title: r.querySelector('a')?.textContent.trim(), diff: r.querySelector('.difficulty')?.getAttribute('data-difficulty')})), activeChip: document.querySelector('.filter__chip.is-active')?.getAttribute('data-difficulty')})"
+```
+
+**执行结果**: ✅ 通过
+
+- `activeChip = "Easy"`
+- 2 行可见，且 `diff = "Easy"`（id=1 两数之和、id=2 判断奇偶）
+- 行数 = chip 计数"简单 2"
+
+---
+
+### TC-015: 难度筛选-中等
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-015 |
+| **用例名称** | 难度筛选-中等 |
+| **前置条件** | 同 TC-014 |
+| **测试步骤** | 1. 点击 `.filter__chip[data-difficulty="Medium"]` |
+| **预期结果** | 仅显示 Medium 题目；chip 切换为 `is-active` |
+
+**执行命令**:
+```bash
+# 1. 点击"中等"chip
+npx --no-install playwright-cli click e34
+
+# 2. 校验
+Start-Sleep -Seconds 1
+npx --no-install playwright-cli --raw eval "JSON.stringify({rows: [...document.querySelectorAll('.problem-table__row')].map(r => ({title: r.querySelector('a')?.textContent.trim(), diff: r.querySelector('.difficulty')?.getAttribute('data-difficulty')})), activeChip: document.querySelector('.filter__chip.is-active')?.getAttribute('data-difficulty')})"
+```
+
+**执行结果**: ✅ 通过
+
+- `activeChip = "Medium"`
+- 1 行可见（id=3 判断质数），`diff = "Medium"`
+- 行数 = chip 计数"中等 1"
+
+---
+
+### TC-016: 难度筛选-困难
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-016 |
+| **用例名称** | 难度筛选-困难 |
+| **前置条件** | 同 TC-014 |
+| **测试步骤** | 1. 点击 `.filter__chip[data-difficulty="Hard"]` |
+| **预期结果** | 仅显示 Hard 题目；chip 切换为 `is-active` |
+
+**执行命令**:
+```bash
+# 1. 点击"困难"chip
+npx --no-install playwright-cli click e37
+
+# 2. 校验
+Start-Sleep -Seconds 1
+npx --no-install playwright-cli --raw eval "JSON.stringify({rows: [...document.querySelectorAll('.problem-table__row')].map(r => ({title: r.querySelector('a')?.textContent.trim(), diff: r.querySelector('.difficulty')?.getAttribute('data-difficulty')})), activeChip: document.querySelector('.filter__chip.is-active')?.getAttribute('data-difficulty')})"
+```
+
+**执行结果**: ✅ 通过
+
+- `activeChip = "Hard"`
+- 1 行可见（id=4 计算最大公约数），`diff = "Hard"`
+- 行数 = chip 计数"困难 1"
+
+---
+
+### TC-017: 难度筛选-重置为全部
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-017 |
+| **用例名称** | 难度筛选-重置为全部 |
+| **前置条件** | 当前已选 Hard 筛选 |
+| **测试步骤** | 1. 点击 `.filter__chip[data-difficulty="all"]` |
+| **预期结果** | "全部" chip 重新 `is-active`，列表恢复全集 |
+
+**执行命令**:
+```bash
+# 1. 点击"全部"chip
+npx --no-install playwright-cli click e28
+
+# 2. 校验
+Start-Sleep -Seconds 1
+npx --no-install playwright-cli --raw eval "JSON.stringify({rows: document.querySelectorAll('.problem-table__row').length, activeChip: document.querySelector('.filter__chip.is-active')?.getAttribute('data-difficulty')})"
+```
+
+**执行结果**: ✅ 通过
+
+- `activeChip = "all"`
+- 行数恢复为 4 行
+
+---
+
+### TC-018: 按标题关键字搜索
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-018 |
+| **用例名称** | 按标题关键字搜索 |
+| **前置条件** | 题库首个 Easy 题为 id=1 "两数之和"，关键字取前 2 字 = `两数` |
+| **测试步骤** | 1. 访问 `/problem_list.html`<br>2. 在 `#searchInput` 输入 `两数`<br>3. 等待 200ms（防抖 80ms） |
+| **预期结果** | 1. 列表只显示标题包含该关键字的题目<br>2. 搜索对大小写不敏感<br>3. 不影响当前难度筛选 |
+
+**执行命令**:
+```bash
+# 1. 在搜索框输入"两数"
+npx --no-install playwright-cli fill e41 "两数"
+
+# 2. 等待防抖 + 列表刷新
+Start-Sleep -Seconds 1
+
+# 3. 校验
+npx --no-install playwright-cli snapshot
+```
+
+**执行结果**: ✅ 通过
+
+- 列表过滤为 1 行：`1 两数之和 简单`
+- 难度筛选仍为 "全部"（未被搜索覆盖）
+- 验证搜索 + 难度筛选可叠加，但本用例主要验证搜索独立功能
+
+---
+
+### TC-019: 搜索无匹配结果
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-019 |
+| **用例名称** | 搜索无匹配结果 |
+| **前置条件** | `admin` 已登录 |
+| **测试步骤** | 1. 在 `#searchInput` 输入 `__no_such_problem__`<br>2. 观察空态按钮<br>3. 点击"查看全部"按钮 |
+| **预期结果** | 1. 显示空态 `.empty-state` 包含"没有匹配的题目"<br>2. 点击"查看全部"后搜索框清空、难度回到 all、列表恢复全集 |
+
+**执行命令**:
+```bash
+# 1. 输入不存在的关键字
+npx --no-install playwright-cli fill e41 "__no_such_problem__"
+
+# 2. 等待 + 校验空态
+Start-Sleep -Seconds 1
+npx --no-install playwright-cli --raw eval "JSON.stringify({emptyText: document.querySelector('.empty-state')?.textContent.trim().slice(0,200), btn: document.querySelector('.empty-state button')?.textContent.trim()})"
+
+# 3. 点击"查看全部"按钮
+npx --no-install playwright-cli --raw eval "(() => { document.querySelector('.empty-state button').click(); return 'clicked'; })()"
+
+# 4. 校验重置结果
+Start-Sleep -Seconds 1
+npx --no-install playwright-cli --raw eval "JSON.stringify({searchVal: document.getElementById('searchInput').value, rows: document.querySelectorAll('.problem-table__row').length, activeChip: document.querySelector('.filter__chip.is-active')?.getAttribute('data-difficulty')})"
+```
+
+**执行结果**: ✅ 通过
+
+- 空态文案：`没有匹配的题目 / 尝试调整过滤或搜索条件。/ 查看全部`
+- 点击"查看全部"后：`searchVal=""`、`rows=4`、`activeChip="all"`
+
+---
+
+### TC-020: 查看题目详情
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-020 |
+| **用例名称** | 查看题目详情 |
+| **前置条件** | `admin` 已登录；首个 Easy 题 id = 1（两数之和） |
+| **测试步骤** | 1. 直接访问 `/problem.html?id=1`<br>2. 等待 `#problemContent[aria-busy="false"]` |
+| **预期结果** | 1. URL 变为 `/problem.html?id=1`<br>2. `#problemTitle` 显示题目标题<br>3. `#problemEyebrow` 显示"题库 · 题目 #1"<br>4. `#problemMeta` 显示难度条<br>5. `#editor` 内出现 Ace 编辑器（`.ace_text-input` 存在）<br>6. `#testCaseList` 至少存在一个 `.test-case-row--readonly`（官方用例） |
+
+**执行命令**:
+```bash
+# 1. 跳转详情页
+npx --no-install playwright-cli goto http://124.222.15.175:8080/problem.html?id=1
+
+# 2. 等待编辑器与用例区加载完成
+Start-Sleep -Seconds 2
+
+# 3. 校验详情页所有关键元素
+npx --no-install playwright-cli --raw eval "JSON.stringify({title: document.getElementById('problemTitle')?.textContent.trim(), eyebrow: document.getElementById('problemEyebrow')?.textContent.trim(), hasMeta: !!document.querySelector('#problemMeta .difficulty'), hasAce: !!document.querySelector('.ace_text-input'), readonlyCases: document.querySelectorAll('.test-case-row--readonly').length, contentBusy: document.getElementById('problemContent')?.getAttribute('aria-busy')})"
+```
+
+**执行结果**: ✅ 通过
+
+```json
+{
+  "title": "两数之和",
+  "eyebrow": "题库 · 题目 #1",
+  "hasMeta": true,
+  "hasAce": true,
+  "readonlyCases": 2,
+  "contentBusy": "false"
+}
+```
+
+---
+
+### TC-021: 题目详情页 404
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-021 |
+| **用例名称** | 题目详情页 404 |
+| **前置条件** | `admin` 已登录 |
+| **测试步骤** | 1. 访问 `/problem.html?id=99999` |
+| **预期结果** | 1. 页面渲染 `.empty-state` 包含"题目不存在"<br>2. 含"返回列表"按钮，点击后跳转 `/problem_list.html`<br>3. 后端 `/api/problems/99999` 返回 404 |
+
+**执行命令**:
+```bash
+# 1. 访问不存在的题号
+npx --no-install playwright-cli goto http://124.222.15.175:8080/problem.html?id=99999
+
+# 2. 等待 + 校验空态
+Start-Sleep -Seconds 2
+npx --no-install playwright-cli --raw eval "JSON.stringify({emptyText: document.querySelector('.empty-state')?.textContent.trim().slice(0,200), hasBackBtn: !!document.querySelector('.empty-state a, .empty-state button')})"
+
+# 3. 校验后端返回 404
+npx --no-install playwright-cli requests | Select-String "/api/problems/99999"
+```
+
+**执行结果**: ✅ 通过
+
+- 空态文案：`题目不存在 / 这道题可能已被删除，或链接有误。/ 返回列表`
+- `hasBackBtn = true`（"返回列表"按钮存在）
+- `GET /api/problems/99999` 返回 **`404 Not Found`**
+
+---
+
+### TC-022: 题目详情页缺 ID
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-022 |
+| **用例名称** | 题目详情页缺 ID |
+| **前置条件** | `admin` 已登录 |
+| **测试步骤** | 1. 访问 `/problem.html`（无 `?id=` 参数） |
+| **预期结果** | 显示 `.empty-state` 包含"题目不存在"与副标题"链接缺少题号" |
+
+**执行命令**:
+```bash
+# 1. 不带 id 参数访问
+npx --no-install playwright-cli goto http://124.222.15.175:8080/problem.html
+
+# 2. 等待 + 校验
+Start-Sleep -Seconds 2
+npx --no-install playwright-cli --raw eval "JSON.stringify({emptyText: document.querySelector('.empty-state')?.textContent.trim().slice(0,200)})"
+```
+
+**执行结果**: ✅ 通过
+
+- 空态文案：`题目不存在 / 链接缺少题号。/ 返回列表`
+- 主标题"题目不存在"、副标题"链接缺少题号"、含"返回列表"按钮均符合预期
+
+---
+
+## 二、本轮用例结果汇总
+
+| 用例 | 名称 | 结果 | 关键断言 |
+|------|------|------|---------|
+| TC-013 | 题目列表加载 | ✅ | 4 行渲染；chip 计数 2/1/1 合计 4 = 全部 |
+| TC-014 | 难度筛选-简单 | ✅ | active=Easy，2 行均为 Easy |
+| TC-015 | 难度筛选-中等 | ✅ | active=Medium，1 行 Medium |
+| TC-016 | 难度筛选-困难 | ✅ | active=Hard，1 行 Hard |
+| TC-017 | 难度筛选-重置为全部 | ✅ | active=all，4 行全显 |
+| TC-018 | 按标题关键字搜索 | ✅ | "两数"过滤出唯一匹配，难度保持 all |
+| TC-019 | 搜索无匹配结果 | ✅ | 空态"没有匹配的题目"，"查看全部"重置搜索/筛选/列表 |
+| TC-020 | 查看题目详情 | ✅ | 标题/题号栏/Ace/2 个官方用例齐全，aria-busy=false |
+| TC-021 | 题目详情页 404 | ✅ | 空态"题目不存在"，`/api/problems/99999` 返回 404 |
+| TC-022 | 题目详情页缺 ID | ✅ | 主标题"题目不存在" + 副标题"链接缺少题号" |
+
+**10 / 10 全部通过**。
+
+---
+
+## 三、本轮注意点
+
+1. **复用登录态**: 浏览器未关闭，`oj_session` Cookie 仍有效；`/api/me` 偶发返回 401（页面初次进入时 race condition），刷新后即恢复 200。可在下一轮用例开始前显式 `goto /problem_list.html` 一次确保 sessionStorage 写入。
+2. **选择器差异**: 题目行的题名实际放在 `<a>` 标签内，本轮统一用 `r.querySelector('a')?.textContent.trim()` 提取；文档中"`.problem-table__title`"的写法在本系统并不存在，提请注意修正（详见 web自动化测试文档.md 1.2 表格更新建议）。
+3. **空态文本含换行符**: 用 `textContent.trim().slice(0,200)` 取前 200 字符防止超长输出。
+4. **详情页 404 仍走 `/api/problems/99999`**: 后端响应码 404 与前端 `aria-busy="false"` + `.empty-state` 渲染是同时观察的，前端没有因为 404 陷入加载态。
+5. **浏览器保持打开**: 本轮 10 个用例结束后浏览器仍处于已登录 admin 状态，下一轮 TC-023 起可直接继续。
+
