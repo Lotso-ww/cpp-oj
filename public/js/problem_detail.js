@@ -246,7 +246,12 @@
       }
     }
     if (commentRow === -1) {
-      editorInstance.navigateToEnd();
+      if (typeof editorInstance.navigateFileEnd === 'function') {
+        editorInstance.navigateFileEnd();
+      } else if (typeof editorInstance.gotoLine === 'function') {
+        const last = editorInstance.session.getLength();
+        editorInstance.gotoLine(last, last, false);
+      }
       return;
     }
     const line = lines[commentRow];
@@ -343,7 +348,12 @@
     if (isNewCode) {
       placeCursorOnComment(editor, state.initialCode);
     } else {
-      editor.navigateToEnd();
+      if (typeof editor.navigateFileEnd === 'function') {
+        editor.navigateFileEnd();
+      } else if (typeof editor.gotoLine === 'function') {
+        const last = editor.session.getLength();
+        editor.gotoLine(last, last, false);
+      }
     }
 
     // Auto-save on every change
@@ -931,14 +941,22 @@
         renderPageHeader();
         renderContent();
 
-        // If problem has a non-empty template, use it
+        // If problem has a non-empty template, use it. BUT only when the
+        // user has not already typed anything (i.e. no sessionStorage draft
+        // was hydrated by initEditor). Overwriting a user-edited draft on
+        // reload would silently discard their work.
         const tpl = (state.problem.template || '').trim();
-        if (tpl && state.editor) {
+        const codeKey = 'oj_editor_code_' + (state.problemId || 'unknown');
+        const hasSavedDraft = (() => { try { return !!sessionStorage.getItem(codeKey); } catch (_) { return false; } })();
+        if (tpl && state.editor && !hasSavedDraft) {
           state.initialCode = tpl;
           state.editor.setValue(tpl, -1);
           // Realign the cursor with the rendered characters after the
           // template swap (same reason as in initEditor).
           remeasureEditor(state.editor);
+        } else if (tpl && state.editor) {
+          // Keep the user's draft as the initial code so reset returns to it.
+          state.initialCode = state.editor.getValue();
         }
 
         // Populate the test-case editor. The problem's DB test cases go
