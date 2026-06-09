@@ -357,11 +357,18 @@
     }
 
     // Auto-save on every change
-    let saveTimer = null;
+    state.saveTimer = null;
+    state.cancelAutoSave = () => {
+      if (state.saveTimer) {
+        clearTimeout(state.saveTimer);
+        state.saveTimer = null;
+      }
+    };
     editor.session.on('change', () => {
-      clearTimeout(saveTimer);
-      saveTimer = setTimeout(() => {
+      state.cancelAutoSave();
+      state.saveTimer = setTimeout(() => {
         try { sessionStorage.setItem(codeKey, editor.getValue()); } catch (_) {}
+        state.saveTimer = null;
       }, 200);
     });
 
@@ -996,12 +1003,25 @@
     if (resetBtn) {
       resetBtn.addEventListener('click', () => {
         if (!state.editor) return;
-        state.editor.setValue(state.initialCode, -1);
+        // Cancel any pending auto-save first so the change triggered by
+        // setValue below does not re-write the draft 200ms later.
+        if (typeof state.cancelAutoSave === 'function') {
+          state.cancelAutoSave();
+        }
+        // The user expects reset to revert to the *original* problem
+        // template (or the DEFAULT_CPP fallback). Recover that here because
+        // state.initialCode may have been overwritten with the user's draft
+        // when the editor was hydrated from sessionStorage.
+        const originalCode = (state.problem && (state.problem.template || '').trim())
+          ? state.problem.template
+          : DEFAULT_CPP;
+        state.editor.setValue(originalCode, -1);
+        state.initialCode = originalCode;
         // Also clear the saved code so the next page load starts fresh
         const codeKey = 'oj_editor_code_' + (state.problemId || 'unknown');
         try { sessionStorage.removeItem(codeKey); } catch (_) {}
         // Place cursor on the comment line so user can immediately type
-        placeCursorOnComment(state.editor, state.initialCode);
+        placeCursorOnComment(state.editor, originalCode);
         clearResult();
         if (state.editor && state.editor.focus) state.editor.focus();
       });
