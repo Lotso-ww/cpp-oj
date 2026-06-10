@@ -1761,3 +1761,458 @@ npx --no-install playwright-cli run-code "async page => { const res = await page
 *执行记录生成时间: 2026-06-10 (TC-035 ~ TC-046 完成)*
 *配套文档: `web自动化测试文档.md`（用例详细规范）*
 
+---
+
+## 七、TC-047 ~ TC-056 测试执行记录（第五轮：权限与安全模块）
+
+**执行时间**: 2026-06-10
+**前置登录态**: 无（每个用例前清除 Cookie + sessionStorage）
+**浏览器模式**: 有头模式 (`--headed`)
+**题库状态**: 4 题（id=1 两数之和 Easy / id=2 判断奇偶 Easy / id=3 判断质数 Medium / id=4 计算最大公约数 Hard）
+
+> **执行要点**:
+> 1. 每个操作之间 `sleep 1s` 便于肉眼观察
+> 2. 使用 `--headed` 模式启动浏览器
+> 3. 每个用例前清除 Cookie + sessionStorage 模拟全新会话
+
+---
+
+### 7.1 TC-047: 未登录访问题目列表
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-047 |
+| **用例名称** | 未登录访问题目列表 |
+| **前置条件** | `context.clearCookies()`，`sessionStorage` 为空 |
+| **测试步骤** | 1. 清除所有 Cookie 和 sessionStorage<br>2. 直接访问 `/problem_list.html` |
+| **预期结果** | 1. `#userMenu` 渲染"登录""注册"链接<br>2. `#tableWrapper` 正常拉取 `/api/problems`（公开接口） |
+
+**执行命令**:
+```bash
+# 1. 打开浏览器（有头模式）
+npx playwright-cli open http://124.222.15.175:8080/problem_list.html --headed
+
+# 2. 清除 Cookie
+npx playwright-cli cookie-clear
+
+# 3. 清除 sessionStorage
+npx playwright-cli eval "sessionStorage.clear()"
+
+# 4. 重新访问题目列表
+npx playwright-cli goto http://124.222.15.175:8080/problem_list.html
+
+# 5. 快照验证
+npx playwright-cli snapshot
+```
+
+**验证要点**:
+-顶栏显示"登录"和"注册"链接
+- 题目列表正常加载（4 题）
+
+**执行结果**: ✅ 通过
+
+- 显示"登录""注册"链接
+- 题目列表正常加载（4 题：两数之和、判断奇偶、判断质数、计算最大公约数）
+
+---
+
+### 7.2 TC-048: 未登录访问管理后台
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-048 |
+| **用例名称** | 未登录访问管理后台 |
+| **前置条件** | 未登录 |
+| **测试步骤** | 1. 清除所有 Cookie<br>2. 访问 `/admin.html` |
+| **预期结果** | 1. 自动 `location.replace('/login.html?return=%2Fadmin.html')` |
+
+**执行命令**:
+```bash
+# 1. 清除 Cookie
+npx playwright-cli cookie-clear
+
+# 2. 访问管理后台
+npx playwright-cli goto http://124.222.15.175:8080/admin.html
+```
+
+**验证要点**:
+- URL 自动跳转为 `/login.html?return=%2Fadmin.html`
+
+**执行结果**: ✅ 通过
+
+- 访问 `/admin.html` 后自动跳转到 `/login.html?return=%2Fadmin.html`
+
+---
+
+### 7.3 TC-049: 普通用户访问管理后台
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-049 |
+| **用例名称** | 普通用户访问管理后台 |
+| **前置条件** | 普通用户 `testuser_1490000000` 已注册并登录 |
+| **测试步骤** | 1. 用普通用户登录<br>2. 访问 `/admin.html` |
+| **预期结果** | 1. 出现 Toast "需要管理员权限"<br>2. 跳转 `/problem_list.html` |
+
+**执行命令**:
+```bash
+# 1. 注册普通用户
+npx playwright-cli goto http://124.222.15.175:8080/register.html
+npx playwright-cli snapshot
+npx playwright-cli fill e20 "testuser_1490000000"
+npx playwright-cli fill e22 "Test1234"
+npx playwright-cli fill e30 "Test1234"
+npx playwright-cli click e32
+
+# 2. 登录普通用户
+npx playwright-cli goto http://124.222.15.175:8080/login.html
+npx playwright-cli fill e20 "testuser_1490000000"
+npx playwright-cli fill e22 "Test1234"
+npx playwright-cli click e28
+
+# 3. 访问管理后台
+npx playwright-cli goto http://124.222.15.175:8080/admin.html
+
+# 4. 快照验证跳转
+npx playwright-cli snapshot
+```
+
+**验证要点**:
+- 页面跳转回 `/problem_list.html`
+- 顶栏显示"你好，testuser_1490000000"，无管理后台链接
+
+**执行结果**: ✅ 通过
+
+- 普通用户访问 `/admin.html` 后被跳转回 `/problem_list.html`
+
+---
+
+### 7.4 TC-050: 管理员角色标识显示
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-050 |
+| **用例名称** | 管理员角色标识显示 |
+| **前置条件** | `admin` 已登录 |
+| **测试步骤** | 1. admin 登录后访问 `/problem_list.html`<br>2. 检查 `#userMenu` 内部 |
+| **预期结果** | 1. 出现 `.admin-mark`（盾牌 SVG）<br>2. 显示"你好，admin"<br>3. 出现 `a[href="/admin.html"].user-menu__link` 入口 |
+
+**执行命令**:
+```bash
+# 1. 登出普通用户
+npx playwright-cli click "button:has-text('退出')"
+
+# 2. 用 admin 登录
+npx playwright-cli goto http://124.222.15.175:8080/login.html
+npx playwright-cli fill e20 "admin"
+npx playwright-cli fill e22 "admin123"
+npx playwright-cli click e28
+
+# 3. 快照验证
+npx playwright-cli snapshot
+```
+
+**验证要点**:
+- 顶栏显示"你好，admin"
+- 有"管理后台"链接
+- 有退出按钮
+
+**执行结果**: ✅ 通过
+
+- 显示"你好，admin"
+- 显示"管理后台"链接
+- 显示退出按钮
+
+---
+
+### 7.5 TC-051: 普通用户角色标识
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-051 |
+| **用例名称** | 普通用户角色标识 |
+| **前置条件** | 普通用户登录 |
+| **测试步骤** | 1. 登出 admin<br>2. 注册并登录普通用户 `testuser_normal_1490000001`<br>3. 检查 `#userMenu` |
+| **预期结果** | 1. 不出现 `.admin-mark`<br>2. 显示"你好，<username>"<br>3. 不出现 `a[href="/admin.html"]` 链接 |
+
+**执行命令**:
+```bash
+# 1. 登出
+npx playwright-cli click "button:has-text('退出')"
+
+# 2. 注册普通用户
+npx playwright-cli goto http://124.222.15.175:8080/register.html
+npx playwright-cli fill e20 "testuser_normal_1490000001"
+npx playwright-cli fill e22 "Test1234"
+npx playwright-cli fill e30 "Test1234"
+npx playwright-cli click e32
+
+# 3. 登录
+npx playwright-cli goto http://124.222.15.175:8080/login.html
+npx playwright-cli fill e20 "testuser_normal_1490000001"
+npx playwright-cli fill e22 "Test1234"
+npx playwright-cli click e28
+
+# 4. 快照验证
+npx playwright-cli snapshot
+```
+
+**验证要点**:
+- 顶栏显示"你好，testuser_normal_1490000001"
+- 无"管理后台"链接
+
+**执行结果**: ✅ 通过
+
+- 显示"你好，testuser_normal_1490000001"
+- 无"管理后台"链接
+
+---
+
+### 7.6 TC-052: 已登录用户重开标签免登录
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-052 |
+| **用例名称** | 已登录用户重开标签免登录 |
+| **前置条件** | `admin` 已登录 |
+| **测试步骤** | 1. admin 登录<br>2. 新开 tab 访问 `/problem_list.html`<br>3. 检查 sessionStorage 与 UI |
+| **预期结果** | 1. tab B 无 `oj_username`，但 `/api/me` 返回 200<br>2. 顶部正确显示用户名与管理员入口 |
+
+**执行命令**:
+```bash
+# 1. 登出普通用户
+npx playwright-cli click "button:has-text('退出')"
+
+# 2. 用 admin 登录
+npx playwright-cli goto http://124.222.15.175:8080/login.html
+npx playwright-cli fill e20 "admin"
+npx playwright-cli fill e22 "admin123"
+npx playwright-cli click e28
+
+# 3. 新开 tab
+npx playwright-cli tab-new http://124.222.15.175:8080/problem_list.html
+
+# 4. 切换到新 tab
+npx playwright-cli tab-select 0
+
+# 5. 快照验证
+npx playwright-cli snapshot
+```
+
+**验证要点**:
+- 新标签页正确显示"你好，admin"和管理后台链接
+
+**执行结果**: ✅ 通过
+
+- 新标签页显示 admin 用户信息和管理后台链接
+
+---
+
+### 7.7 TC-053: 登出后再访问后台
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-053 |
+| **用例名称** | 登出后再访问后台 |
+| **前置条件** | 刚登出 |
+| **测试步骤** | 1. 登出<br>2. 访问 `/admin.html` |
+| **预期结果** | 跳转 `/login.html?return=%2Fadmin.html` |
+
+**执行命令**:
+```bash
+# 1. 关闭当前 tab
+npx playwright-cli tab-close
+
+# 2. 登出
+npx playwright-cli click "button:has-text('退出')"
+
+# 3. 访问管理后台
+npx playwright-cli goto http://124.222.15.175:8080/admin.html
+```
+
+**验证要点**:
+- URL 变为 `/login.html?return=%2Fadmin.html`
+
+**执行结果**: ✅ 通过
+
+- 登出后访问 `/admin.html` 跳转至 `/login.html?return=%2Fadmin.html`
+
+---
+
+### 7.8 TC-054: 越权 POST 题库 API
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-054 |
+| **用例名称** | 越权 POST 题库 API |
+| **前置条件** | 普通用户登录 |
+| **测试步骤** | 1. 普通用户登录<br>2. 用 fetch发送 POST `/api/admin/problems` |
+| **预期结果** | 返回 403 `{"error":"Forbidden"}` |
+
+**执行命令**:
+```bash
+# 1. 注册并登录普通用户
+npx playwright-cli goto http://124.222.15.175:8080/register.html
+npx playwright-cli fill e20 "testuser_post_1490000002"
+npx playwright-cli fill e22 "Test1234"
+npx playwright-cli fill e30 "Test1234"
+npx playwright-cli click e32
+
+npx playwright-cli goto http://124.222.15.175:8080/login.html
+npx playwright-cli fill e20 "testuser_post_1490000002"
+npx playwright-cli fill e22 "Test1234"
+npx playwright-cli click e28
+
+# 2. 发送 POST 请求
+npx playwright-cli eval "async () => { const res = await fetch('/api/admin/problems', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: 'test', difficulty: 'Easy', content: 'test' }) }); const text = await res.text(); return JSON.stringify({ status: res.status, body: text }); }"
+```
+
+**验证要点**:
+- 返回403 Forbidden
+
+**执行结果**: ✅ 通过
+
+- `POST /api/admin/problems` 返回 `{"status":403,"body":"{\"error\":\"Forbidden\"}"}`
+
+---
+
+### 7.9 TC-055: 越权 DELETE 题库 API
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-055 |
+| **用例名称** | 越权 DELETE 题库 API |
+| **前置条件** | 普通用户登录 |
+| **测试步骤** | 1. 普通用户登录<br>2. 用 fetch 发送 DELETE `/api/admin/problems/1` |
+| **预期结果** | 返回 403 `{"error":"Forbidden"}` |
+
+**执行命令**:
+```bash
+# 发送 DELETE 请求
+npx playwright-cli eval "async () => { const res = await fetch('/api/admin/problems/1', { method: 'DELETE' }); const text = await res.text(); return JSON.stringify({ status: res.status, body: text }); }"
+```
+
+**验证要点**:
+- 返回 403 Forbidden
+
+**执行结果**: ✅ 通过
+
+- `DELETE /api/admin/problems/1` 返回 `{"status":403,"body":"{\"error\":\"Forbidden\"}"}`
+
+---
+
+### 7.10 TC-056: 网络异常 Toast
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-056 |
+| **用例名称** | 网络异常 Toast |
+| **前置条件** | `admin` 已登录 |
+| **测试步骤** | 1. 通过 route 拦截 `/api/problems`<br>2. 返回500 状态码<br>3. 访问 `/problem_list.html` |
+| **预期结果** | 1. `#tableWrapper` 显示 `.empty-state` 包含"无法加载题目"<br>2. 含"重试"按钮 |
+
+**执行命令**:
+```bash
+# 1. 拦截 API
+npx playwright-cli route "**/api/problems" --status=500
+
+# 2. 访问题目列表
+npx playwright-cli goto http://124.222.15.175:8080/problem_list.html
+
+# 3. 快照验证
+npx playwright-cli snapshot
+
+# 4. 清除拦截
+npx playwright-cli unroute "**/api/problems"
+```
+
+**验证要点**:
+- 显示"无法加载题目"
+- 有"重试"按钮
+
+**执行结果**: ✅ 通过
+
+- 页面显示"无法加载题目 / 请检查网络后重试。"
+- 有"重试"按钮
+
+---
+
+## 八、第五轮测试结果汇总
+
+### 8.1 测试结果统计
+
+| 用例ID | 用例名称 | 状态 | 关键断言 |
+|--------|----------|------|---------|
+| TC-047 | 未登录访问题目列表 | ✅ 通过 | 显示"登录""注册"链接，题目列表正常加载 |
+| TC-048 | 未登录访问管理后台 | ✅ 通过 | 自动跳转到 `/login.html?return=%2Fadmin.html` |
+| TC-049 | 普通用户访问管理后台 | ✅ 通过 | 被跳转回 `/problem_list.html` |
+| TC-050 | 管理员角色标识显示 | ✅ 通过 | 显示"你好，admin"和管理后台链接 |
+| TC-051 | 普通用户角色标识 | ✅ 通过 | 显示用户名，无管理后台链接 |
+| TC-052 | 已登录用户重开标签免登录 | ✅ 通过 | 新标签页正确继承登录态 |
+| TC-053 | 登出后再访问后台 | ✅ 通过 | 跳转 `/login.html?return=%2Fadmin.html` |
+| TC-054 | 越权 POST 题库 API | ✅ 通过 | 返回403 Forbidden |
+| TC-055 | 越权 DELETE 题库 API | ✅ 通过 | 返回 403 Forbidden |
+| TC-056 | 网络异常 Toast | ✅ 通过 | 显示"无法加载题目"和重试按钮 |
+
+**测试结果汇总**: 10 / 10 全部通过 (100%)
+
+### 8.2 操作流程总结
+
+#### 清除状态（每个用例前执行）
+```
+npx playwright-cli cookie-clear
+npx playwright-cli eval "sessionStorage.clear()"
+```
+
+#### 注册新用户流程
+```
+npx playwright-cli goto http://124.222.15.175:8080/register.html
+npx playwright-cli snapshot  # 获取 ref
+npx playwright-cli fill e20 "username"
+npx playwright-cli fill e22 "password"
+npx playwright-cli fill e30 "password"
+npx playwright-cli click e32  # 创建账号
+```
+
+#### 登录流程
+```
+npx playwright-cli goto http://124.222.15.175:8080/login.html
+npx playwright-cli fill e20 "username"
+npx playwright-cli fill e22 "password"
+npx playwright-cli click e28  # 登录
+```
+
+#### 登出流程
+```
+npx playwright-cli click "button:has-text('退出')"
+```
+
+#### 网络异常模拟
+```
+npx playwright-cli route "**/api/problems" --status=500
+# 操作...
+npx playwright-cli unroute "**/api/problems"
+```
+
+### 8.3 关键元素 Ref 速查
+
+| 页面 | 元素 | Ref |
+|------|------|-----|
+| 注册页 | 用户名输入框 | e20 |
+| 注册页 | 密码输入框 | e22 |
+| 注册页 | 确认密码输入框 | e30 |
+| 注册页 | 创建账号按钮 | e32 |
+| 登录页 | 用户名输入框 | e20 |
+| 登录页 | 密码输入框 | e22 |
+| 登录页 | 登录按钮 | e28 |
+| 通用 | 退出按钮 | 通过文字定位 |
+
+### 8.4发现的 Bug 与修复
+
+无
+
+---
+
+*执行记录生成时间: 2026-06-10 (TC-047 ~ TC-056 完成)*
+*配套文档: `web自动化测试文档.md`（用例详细规范）*
+
