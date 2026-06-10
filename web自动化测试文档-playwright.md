@@ -1284,3 +1284,480 @@ npx --no-install playwright-cli --raw eval "JSON.stringify({emptyText: document.
 | 3 | v=11 | reset 后 sessionStorage 回写问题 |
 | 4 | v=12 | TC-034 前置条件修正 |
 
+---
+
+## 五、TC-035 ~ TC-046 测试执行记录（第四轮：管理后台模块）
+
+**执行时间**: 2026-06-10
+**前置登录态**: admin 已登录
+**浏览器模式**: 有头模式 (`--headed`)
+**题库状态**: 初始 4 题，后因测试需求动态增删
+
+> **执行要点**:
+> 1. 每个操作之间 `sleep 1s` 便于肉眼观察
+> 2. Session 过期后重新登录（通过 `goto /login.html` → 填写凭据 → 点击登录）
+> 3. TC-036、TC-040、TC-046 标题含时间戳避免重跑冲突
+> 4. TC-045 由用户手动清空题库后执行，测试后通过数据库工具恢复
+
+---
+
+### 5.1 TC-035: 管理员访问管理后台
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-035 |
+| **用例名称** | 管理员访问管理后台 |
+| **前置条件** | `admin` 已登录 |
+| **测试步骤** | 1. 直接访问 `/admin.html`<br>2. 验证页面元素 |
+
+**执行命令**:
+```bash
+# 1. 打开浏览器并导航到管理后台
+npx --no-install playwright-cli open --headed http://124.222.15.175:8080/admin.html
+
+# 2. 拿快照验证
+npx --no-install playwright-cli snapshot
+```
+
+**验证要点**:
+- URL 变为 `/admin.html`
+- 显示 `#newProblemForm` 表单
+- 右侧 `#tableWrapper` 渲染题目表格（4 题）
+- 每行含 `.problem-table__delete` 按钮
+- 顶部导航"管理" chip `is-active`
+
+**执行结果**: ✅ 通过
+
+- 管理后台正常加载，显示题库列表
+- 表格列：题号 / 标题 / 难度 / 操作
+- 操作列有"查看题目"和"删除题目"按钮
+- 题目计数：4 题
+
+---
+
+### 5.2 TC-036: 创建新题目
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-036 |
+| **用例名称** | 创建新题目 |
+| **前置条件** | `admin` 已登录 |
+| **测试步骤** | 1. 展开"高级选项"<br>2. 填写完整题目信息<br>3. 提交 |
+
+**时间戳**: `1781085072`
+
+**填写内容**:
+| 字段 | 值 |
+|------|-----|
+| 标题 | `两数之和_1781085072` |
+| 难度 | Easy（默认选中） |
+| 描述 | `给定两个整数 a 和 b，输出它们的和。` |
+| 模板 | `int main(){ int a,b; cin>>a>>b; cout<<a+b<<endl; return 0; }` |
+| 用例 1 | input=`1 2`, expected=`3` |
+| 用例 2 | input=`100 200`, expected=`300` |
+
+**执行命令**:
+```bash
+# 1. 展开高级选项
+npx --no-install playwright-cli click e50  # "+ 高级选项：代码模板与测试用例"
+
+# 2. 填写标题
+npx --no-install playwright-cli fill e32 "两数之和_1781085072"
+
+# 3. 填写描述
+npx --no-install playwright-cli fill e48 "给定两个整数 a 和 b，输出它们的和。"
+
+# 4. 填写模板
+npx --no-install playwright-cli fill e172 "int main(){ int a,b; cin>>a>>b; cout<<a+b<<endl; return 0; }"
+
+# 5. 填写用例1
+npx --no-install playwright-cli fill e180 "1 2"   # stdin
+npx --no-install playwright-cli fill e181 "3"     # expected
+
+# 6. 填写用例2
+npx --no-install playwright-cli fill e185 "100 200"  # stdin
+npx --no-install playwright-cli fill e186 "300"      # expected
+
+# 7. 提交
+npx --no-install playwright-cli click e53  # "添加题目"
+```
+
+**执行结果**: ✅ 通过
+
+- 出现 Toast "题目已添加"
+- 右侧题目列表自动刷新，出现新题"两数之和_1781085072"（id=7）
+- `#problemCount` 从 5 变为 6
+- 表单被重置，测试用例恢复为默认两行
+
+---
+
+### 5.3 TC-037: 创建题目-缺少标题
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-037 |
+| **用例名称** | 创建题目-缺少标题 |
+| **前置条件** | `admin` 已登录 |
+| **测试步骤** | 1. 不填标题<br>2. 填写描述<br>3. 提交 |
+
+**执行命令**:
+```bash
+# 1. 填写描述（标题留空）
+npx --no-install playwright-cli fill e48 "这是测试描述"
+
+# 2. 提交
+npx --no-install playwright-cli click e53
+```
+
+**执行结果**: ✅ 通过
+
+- 出现 Toast "请填写标题"
+- 表单未提交，停留在原页面
+
+---
+
+### 5.4 TC-038: 创建题目-缺少描述
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-038 |
+| **用例名称** | 创建题目-缺少描述 |
+| **前置条件** | `admin` 已登录 |
+| **测试步骤** | 1. 填写标题<br>2. 不填描述<br>3. 提交 |
+
+**执行命令**:
+```bash
+# 1. 填写标题
+npx --no-install playwright-cli fill e32 "无描述测试"
+
+# 2. 提交（描述留空）
+npx --no-install playwright-cli click e53
+```
+
+**执行结果**: ✅ 通过
+
+- 出现 Toast "请填写题目描述"
+- 题目数保持 6（未增加）
+- 表单未提交
+
+---
+
+### 5.5 TC-039: 创建题目-添加多个测试用例
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-039 |
+| **用例名称** | 创建题目-添加多个测试用例 |
+| **前置条件** | `admin` 已登录 |
+| **测试步骤** | 1. 点击"+ 添加用例" 3 次<br>2. 验证共 5 行<br>3. 删除第一行<br>4. 验证剩余 4 行编号连续 |
+
+**执行命令**:
+```bash
+# 1. 点击"+ 添加用例" 3次
+npx --no-install playwright-cli click e276  # 第1次
+npx --no-install playwright-cli click e276  # 第2次
+npx --no-install playwright-cli click e276  # 第3次
+
+# 2. 快照验证共5行（用例 #1 ~ #5）
+npx --no-install playwright-cli snapshot
+
+# 3. 删除第一行
+npx --no-install playwright-cli click e265  # "删除此用例"第一行
+```
+
+**执行结果**: ✅ 通过
+
+- 默认 2 行 + 新增 3 行 = 5 行
+- 用例编号：`#1` `#2` `#3` `#4` `#5`
+- 删除第一行后剩余 4 行：`#1` `#2` `#3` `#4`（编号连续）
+- 每个用例行有"删除此用例"按钮
+
+---
+
+### 5.6 TC-040: 创建题目-空测试用例跳过
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-040 |
+| **用例名称** | 创建题目-空测试用例跳过 |
+| **前置条件** | `admin` 已登录 |
+| **测试步骤** | 1. 填写标题 `empty_cases_1781085072`<br>2. 填写描述<br>3. 测试用例全部留空<br>4. 提交 |
+
+**执行命令**:
+```bash
+# 1. 填写标题
+npx --no-install playwright-cli fill e32 "empty_cases_1781085072"
+
+# 2. 填写描述
+npx --no-install playwright-cli fill e48 "空用例测试描述"
+
+# 3. 提交（测试用例留空）
+npx --no-install playwright-cli click e53
+```
+
+**执行结果**: ✅ 通过
+
+- 出现 Toast "题目已添加"
+- 题目列表增加"empty_cases_1781085072"（id=6）
+- 题目总数从 5 变为 6
+
+---
+
+### 5.7 TC-041: 删除题目-确认
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-041 |
+| **用例名称** | 删除题目-确认 |
+| **前置条件** | `admin` 已登录，题目 `empty_cases_1781085072` 存在（id=6） |
+| **测试步骤** | 1. 点击 id=6 的"删除题目"按钮<br>2. 在弹窗中点击"删除"按钮<br>3. 验证删除成功 |
+
+**执行命令**:
+```bash
+# 1. 点击删除按钮（empty_cases_1781085072）
+npx --no-install playwright-cli click e430  # "删除题目 empty_cases_1781085072"
+
+# 2. 快照确认弹窗出现
+npx --no-install playwright-cli snapshot
+
+# 3. 点击确认删除
+npx --no-install playwright-cli click e441  # "删除"
+```
+
+**执行结果**: ✅ 通过
+
+- 弹出确认对话框："将永久删除题目 #6「empty_cases_1781085072」及其所有测试用例。此操作不可恢复。"
+- 点击"删除"后，出现 Toast "已删除「empty_cases_1781085072」"
+- 题目数从 6 变为 5
+
+---
+
+### 5.8 TC-042: 删除题目-取消
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-042 |
+| **用例名称** | 删除题目-取消 |
+| **前置条件** | `admin` 已登录，题目 id=5 存在 |
+| **测试步骤** | 1. 点击 id=5 的"删除题目"按钮<br>2. 点击"取消"按钮<br>3. 验证题目未被删除 |
+
+**执行命令**:
+```bash
+# 1. 点击删除按钮（测试标题）
+npx --no-install playwright-cli click e542  # "删除题目 测试标题"
+
+# 2. 快照确认弹窗
+npx --no-install playwright-cli snapshot
+
+# 3. 点击取消
+npx --no-install playwright-cli click e440  # "取消"
+```
+
+**执行结果**: ✅ 通过
+
+- 弹窗出现
+- 点击"取消"后弹窗关闭
+- 题目数保持 5 题（未被删除）
+
+---
+
+### 5.9 TC-043: 删除题目-Esc 关闭弹窗
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-043 |
+| **用例名称** | 删除题目-Esc 关闭弹窗 |
+| **前置条件** | `admin` 已登录 |
+| **测试步骤** | 1. 点击删除按钮触发弹窗<br>2. 按 Escape 键<br>3. 验证弹窗关闭 |
+
+**执行命令**:
+```bash
+# 1. 触发删除弹窗
+npx --no-install playwright-cli click e542  # "删除题目 测试标题"
+
+# 2. 按 Escape
+npx --no-install playwright-cli press Escape
+```
+
+**执行结果**: ✅ 通过
+
+- 弹窗关闭
+- 题目数保持 5 题（未被删除）
+
+---
+
+### 5.10 TC-044: 删除题目-点击背景关闭
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-044 |
+| **用例名称** | 删除题目-点击背景关闭 |
+| **前置条件** | `admin` 已登录 |
+| **测试步骤** | 1. 点击删除按钮触发弹窗<br>2. 点击 `.modal__backdrop`<br>3. 验证弹窗关闭 |
+
+**执行命令**:
+```bash
+# 1. 触发删除弹窗
+npx --no-install playwright-cli click e542
+
+# 2. 点击背景关闭
+npx --no-install playwright-cli eval "document.querySelector('.modal__backdrop').click()"
+```
+
+**执行结果**: ✅ 通过
+
+- 弹窗关闭
+- 题目数保持 5 题（未被删除）
+
+---
+
+### 5.11 TC-045: 题库为空
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-045 |
+| **用例名称** | 题库为空 |
+| **前置条件** | 用户手动清空所有题目 |
+| **测试步骤** | 1. 依次删除所有题目（id=1,2,3,4,5,7）<br>2. 验证空态显示 |
+
+> **说明**: 由用户预先清空题库（通过管理后台删除或数据库 TRUNCATE），测试后通过数据库工具恢复。
+
+**验证要点**:
+- `#tableWrapper` 显示 `.empty-state`
+- 空态文案：`暂无题目` / `还没有任何题目。在上方表单中添加一道吧。`
+- `#problemCount` 显示 `0 题`
+- 新增题目表单仍可正常使用
+
+**执行结果**: ✅ 通过
+
+- 页面显示"暂无题目"
+- 提示文案：`还没有任何题目。在上方表单中添加一道吧。`
+- 题目计数：`0 题`
+- 表单区域正常显示，可正常填写
+
+---
+
+### 5.12 TC-046: 创建题目-难度非法
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-046 |
+| **用例名称** | 创建题目-难度非法 |
+| **前置条件** | `admin` 已登录 |
+| **测试步骤** | 1. 通过 API 发送非法难度值<br>2. 验证后端返回 400 |
+
+**执行命令**:
+```bash
+# 使用 run-code 直接发送 API 请求
+npx --no-install playwright-cli run-code "async page => { const res = await page.request.post('http://124.222.15.175:8080/api/admin/problems', { headers: { 'Content-Type': 'application/json' }, data: { title: 'illegal_1781085072', difficulty: 'Super', content: 'x' } }); return { status: res.status(), body: await res.json() }; }"
+```
+
+**执行结果**: ✅ 通过
+
+- 后端返回 **400 Bad Request**
+- 响应体：`{"error":"Invalid difficulty. Must be Easy, Medium, or Hard"}`
+
+---
+
+## 六、第四轮测试结果汇总
+
+### 6.1 测试结果统计
+
+| 用例ID | 用例名称 | 状态 | 关键断言 |
+|--------|----------|------|---------|
+| TC-035 | 管理员访问管理后台 | ✅ 通过 | URL `/admin.html`，显示表单和题目列表 |
+| TC-036 | 创建新题目 | ✅ 通过 | Toast "题目已添加"，列表新增题目 #7 |
+| TC-037 | 创建题目-缺少标题 | ✅ 通过 | Toast "请填写标题" |
+| TC-038 | 创建题目-缺少描述 | ✅ 通过 | Toast "请填写题目描述" |
+| TC-039 | 创建题目-添加多个测试用例 | ✅ 通过 | 5行→4行，编号连续 |
+| TC-040 | 创建题目-空测试用例跳过 | ✅ 通过 | 成功创建，题目 #6 |
+| TC-041 | 删除题目-确认 | ✅ 通过 | Toast "已删除"，列表刷新 |
+| TC-042 | 删除题目-取消 | ✅ 通过 | 弹窗关闭，题目未删 |
+| TC-043 | 删除题目-Esc 关闭弹窗 | ✅ 通过 | 弹窗关闭，题目未删 |
+| TC-044 | 删除题目-点击背景关闭 | ✅ 通过 | 弹窗关闭，题目未删 |
+| TC-045 | 题库为空 | ✅ 通过 | 空态"暂无题目"，0 题 |
+| TC-046 | 创建题目-难度非法 | ✅ 通过 | API 返回 400 |
+
+**测试结果汇总**: 12 / 12 全部通过 (100%)
+
+### 6.2 操作流程总结
+
+#### 登录流程（如 Session 过期）
+```
+1. npx --no-install playwright-cli goto http://124.222.15.175:8080/login.html
+2. npx --no-install playwright-cli snapshot  # 获取 ref
+3. npx --no-install playwright-cli fill e20 "admin"
+4. npx --no-install playwright-cli fill e22 "admin123"
+5. npx --no-install playwright-cli click e28  # 登录
+```
+
+#### 管理后台操作流程
+```
+1. npx --no-install playwright-cli goto http://124.222.15.175:8080/admin.html
+2. npx --no-install playwright-cli snapshot  # 获取元素 ref
+3. 展开高级选项（如果需要）
+   npx --no-install playwright-cli click e50  # "+ 高级选项：..."
+4. 填写表单
+   npx --no-install playwright-cli fill e32 "标题"
+   npx --no-install playwright-cli fill e48 "描述"
+   npx --no-install playwright-cli fill e172 "模板"
+5. 填写测试用例
+   npx --no-install playwright-cli fill e180 "input1"
+   npx --no-install playwright-cli fill e181 "expected1"
+   ...
+6. 提交
+   npx --no-install playwright-cli click e53  # "添加题目"
+```
+
+#### 删除题目流程
+```
+1. npx --no-install playwright-cli click <delete-button-ref>
+2. npx --no-install playwright-cli snapshot  # 确认弹窗
+3. 确认删除: npx --no-install playwright-cli click e441  # "删除"
+   或取消:  npx --no-install playwright-cli click e440  # "取消"
+   或Esc:   npx --no-install playwright-cli press Escape
+```
+
+### 6.3 关键元素 Ref 速查
+
+| 页面 | 元素 | Ref |
+|------|------|-----|
+| 登录页 | 用户名输入框 | e20 |
+| 登录页 | 密码输入框 | e22 |
+| 登录页 | 登录按钮 | e28 |
+| 管理后台 | 标题输入框 | e32 |
+| 管理后台 | 描述输入框 | e48 |
+| 管理后台 | 高级选项展开按钮 | e50 |
+| 管理后台 | 代码模板输入框 | e172 |
+| 管理后台 | 添加用例按钮 | e276 |
+| 管理后台 | 提交按钮 | e53 |
+| 管理后台 | 清空按钮 | e52 |
+| 管理后台 | 删除确认弹窗-删除 | e441 |
+| 管理后台 | 删除确认弹窗-取消 | e440 |
+| 测试用例行 | stdin 输入框 (#N) | e180, e185, e282... |
+| 测试用例行 | expected 输入框 (#N) | e181, e186, e283... |
+| 测试用例行 | 删除此用例按钮 | e265, e272, e280... |
+
+> **注意**: 元素 ref 在页面状态变化后可能改变（如点击按钮、弹窗出现），建议每次操作前重新 `snapshot` 获取最新 ref。
+
+### 6.4 时间戳使用说明
+
+| 用例 | 时间戳 | 用途 |
+|------|--------|------|
+| TC-036 | `1781085072` | 题目标题后缀 `两数之和_1781085072` |
+| TC-038 | — | 仅填写标题"无描述测试"，不填描述 |
+| TC-040 | `1781085072` | 题目标题 `empty_cases_1781085072` |
+| TC-046 | `1781085072` | API 测试 `title: 'illegal_1781085072'` |
+
+> **时间戳生成命令**:
+> ```powershell
+> $TS = [int][double]::Parse((Get-Date -UFormat %s))
+> # 或
+> [Math]::Floor((Get-Date -UFormat %s))
+> ```
+
+---
+
+*执行记录生成时间: 2026-06-10 (TC-035 ~ TC-046 完成)*
+*配套文档: `web自动化测试文档.md`（用例详细规范）*
+
