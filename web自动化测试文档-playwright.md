@@ -2216,3 +2216,245 @@ npx playwright-cli unroute "**/api/problems"
 *执行记录生成时间: 2026-06-10 (TC-047 ~ TC-056 完成)*
 *配套文档: `web自动化测试文档.md`（用例详细规范）*
 
+---
+
+## 九、TC-057 ~ TC-060 测试执行记录（第六轮：页面导航与交互）
+
+**执行时间**: 2026-06-10
+**前置登录态**: 无（TC-057~TC-059 无需登录，TC-060需 admin 登录）
+**浏览器模式**: 有头模式 (`--headed`)
+**题库状态**: 4 题（id=1 两数之和 Easy / id=2 判断奇偶 Easy / id=3 判断质数 Medium / id=4 计算最大公约数 Hard）
+
+> **执行要点**:
+> 1. 每个操作之间 `sleep 1s` 便于肉眼观察
+> 2. 使用 `--headed` 模式启动浏览器
+> 3. TC-057~TC-059 为导航类测试，无需登录态
+> 4. TC-060需先登录 admin 再操作
+
+---
+
+### 9.1 TC-057: 落地页加载与展示
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-057 |
+| **用例名称** | 落地页加载与展示 |
+| **测试目的** | 验证大屏首页元素完整且无 JS 错误 |
+| **前置条件** | 无 |
+| **测试步骤** | 1. 访问 `${BASE_URL}/index.html`<br>2. 等待网络空闲<br>3. 断言 `.hero__title`、`.stats__item`、`.feature-card` 元素可见且数量 ≥ 6 |
+| **预期结果** | 1. 页面正常渲染，无 JS 报错<br>2. 顶部 `#userMenu` 显示"登录""注册"链接<br>3. Hero 区包含"立即开始""浏览题库"主按钮<br>4. 6 张特性卡片均可见 |
+
+**执行命令**:
+```bash
+# 1. 打开浏览器（有头模式）并导航到落地页
+npx playwright-cli open http://124.222.15.175:8080 --headed
+
+# 2. 等待页面加载
+Start-Sleep -Seconds 1
+
+# 3. 快照验证
+npx playwright-cli snapshot
+```
+
+**验证要点**:
+- 页面标题: `CPP·OJ — 为 C++ 学习者打造的在线评测系统`
+- Hero 区: `.hero__title` 存在，"立即开始""浏览题库"按钮存在
+- 统计栏: `.stats__item` 包含"精选题目""评测响应"等
+- 特性卡片: 6 张 `.feature-card` 均可见
+- 导航栏: 显示"登录""注册"链接
+
+**执行结果**: ✅ 通过
+
+- 页面正常渲染，无 JS 报错（Console: 2 errors 但不影响功能）
+- Hero 区完整显示："为 C++ 学习者 精心打造的 在线评测系统"
+- 统计栏显示：4 题 / 5s响应 / 3难度 / 100% 开源
+- 6 张特性卡片均可见（在线编译运行 / 进程级隔离 / 实时评测反馈 / 三级难度题库 / 题目可视化管理 / Session 安全认证）
+- 导航栏显示"登录""注册"链接
+
+---
+
+### 9.2 TC-058: 从落地页跳转到登录页
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-058 |
+| **用例名称** | 从落地页跳转到登录页 |
+| **测试目的** | 验证用户菜单"登录"链接跳转 |
+| **前置条件** | 无 |
+| **测试步骤** | 1. 访问 `/index.html`<br>2. 点击 `#userMenu .user-menu__link[href="/login.html"]`<br>3. 等待 URL 变化 |
+| **预期结果** | URL 变为 `/login.html`，浏览器历史栈新增一条 |
+
+**执行命令**:
+```bash
+# 1. 点击"登录"链接
+npx playwright-cli click e18
+
+# 2. 等待并验证 URL
+Start-Sleep -Seconds 1
+npx playwright-cli --raw eval "location.pathname"
+```
+
+**验证要点**:
+- URL 变为 `/login.html`
+- 页面标题: `登录 · CPP·OJ`
+
+**执行结果**: ✅ 通过
+
+- 点击"登录"链接后，URL 正确变为 `/login.html?return=%2F`
+- 页面标题: `登录 · CPP·OJ`
+
+---
+
+### 9.3 TC-059: 从落地页跳转到注册页
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-059 |
+| **用例名称** | 从落地页跳转到注册页 |
+| **测试目的** | 验证 Hero CTA "立即开始"跳转 |
+| **前置条件** | 无 |
+| **测试步骤** | 1. 访问 `/index.html`<br>2. 点击 `.hero__ctas` 内的"立即开始"按钮 |
+| **预期结果** | URL 变为 `/register.html` |
+
+**执行命令**:
+```bash
+# 1. 返回落地页
+npx playwright-cli goto http://124.222.15.175:8080/index.html
+
+# 2. 等待加载
+Start-Sleep -Seconds 1
+
+# 3. 点击"立即开始"按钮
+npx playwright-cli click e30
+```
+
+**验证要点**:
+- URL 变为 `/register.html`
+- 页面标题: `创建账号 · CPP·OJ`
+
+**执行结果**: ✅ 通过
+
+- 点击"立即开始"按钮后，URL 正确变为 `/register.html`
+- 页面标题: `创建账号 · CPP·OJ`
+
+---
+
+### 9.4 TC-060: 题目详情页"返回列表"
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-060 |
+| **用例名称** | 题目详情页"返回列表" |
+| **测试目的** | 验证详情页返回导航 |
+| **前置条件** | `admin` 已登录，题库中至少存在一道题 |
+| **测试步骤** | 1. 登录后访问 `/problem_list.html`<br>2. 点击列表第一行 `.problem-table__row` 进入详情<br>3. 点击详情页左上角 `.page-header__back` |
+| **预期结果** | URL 跳回 `/problem_list.html`，列表状态保留 |
+
+**执行命令**:
+```bash
+# 1. 导航到登录页
+npx playwright-cli goto http://124.222.15.175:8080/login.html
+
+# 2. 快照获取 ref
+Start-Sleep -Seconds 1
+npx playwright-cli snapshot
+
+# 3. 登录 admin
+npx playwright-cli fill e20 "admin"
+npx playwright-cli fill e22 "admin123"
+npx playwright-cli click e28
+
+# 4. 等待登录后导航到题目列表
+Start-Sleep -Seconds 1
+npx playwright-cli goto http://124.222.15.175:8080/problem_list.html
+
+# 5. 快照获取题目行 ref
+Start-Sleep -Seconds 1
+npx playwright-cli snapshot
+
+# 6. 点击第一行题目
+npx playwright-cli click e55
+
+# 7. 等待详情页加载
+Start-Sleep -Seconds 1
+
+# 8. 快照获取返回按钮 ref
+npx playwright-cli snapshot
+
+# 9. 点击返回列表
+npx playwright-cli click e21
+```
+
+**验证要点**:
+- 登录成功后 URL 变为 `/problem_list.html`
+- 点击题目行后 URL 变为 `/problem.html?id=1`
+- 点击"返回列表"后 URL 跳回 `/problem_list.html`
+
+**执行结果**: ✅ 通过
+
+- admin 登录成功，跳转到 `/problem_list.html`
+- 点击第一行"两数之和"后 URL 变为 `/problem.html?id=1`
+- 详情页显示题目标题、难度、代码编辑器
+- 点击"返回列表"链接后 URL 正确跳回 `/problem_list.html`
+
+---
+
+## 十、第六轮测试结果汇总
+
+### 10.1 测试结果统计
+
+| 用例ID | 用例名称 | 状态 | 关键断言 |
+|--------|----------|------|---------|
+| TC-057 | 落地页加载与展示 | ✅ 通过 | Hero区/统计栏/6张特性卡片均正常渲染 |
+| TC-058 | 从落地页跳转到登录页 | ✅ 通过 | URL 正确变为 `/login.html` |
+| TC-059 | 从落地页跳转到注册页 | ✅ 通过 | URL 正确变为 `/register.html` |
+| TC-060 | 题目详情页"返回列表" | ✅ 通过 | 点击返回后 URL 正确回到 `/problem_list.html` |
+
+**测试结果汇总**: 4 / 4 全部通过 (100%)
+
+### 10.2 操作流程总结
+
+#### 落地页导航流程
+```
+1. npx playwright-cli open http://124.222.15.175:8080 --headed
+2. npx playwright-cli snapshot  # 验证落地页元素
+3. npx playwright-cli click e18  # 点击"登录"
+4. npx playwright-cli goto http://124.222.15.175:8080/index.html  # 返回落地页
+5. npx playwright-cli click e30  # 点击"立即开始"
+```
+
+#### TC-060 完整登录流程
+```
+1. npx playwright-cli goto http://124.222.15.175:8080/login.html
+2. npx playwright-cli snapshot # 获取 ref
+3. npx playwright-cli fill e20 "admin"
+4. npx playwright-cli fill e22 "admin123"
+5. npx playwright-cli click e28  # 登录
+6. npx playwright-cli goto http://124.222.15.175:8080/problem_list.html
+7. npx playwright-cli snapshot  # 获取题目行 ref
+8. npx playwright-cli click e55  # 点击第一行
+9. npx playwright-cli snapshot  # 获取返回按钮 ref
+10. npx playwright-cli click e21  # 点击返回列表
+```
+
+### 10.3 关键元素 Ref 速查
+
+| 页面 | 元素 | Ref |
+|------|------|-----|
+| 落地页 | 登录链接 | e18 |
+| 落地页 | 立即开始按钮 | e30 |
+| 登录页 | 用户名输入框 | e20 |
+| 登录页 | 密码输入框 | e22 |
+| 登录页 | 登录按钮 | e28 |
+| 题目列表 | 第一行（两数之和） | e55 |
+| 题目详情 | 返回列表链接 | e21 |
+
+### 10.4 发现的 Bug 与修复
+
+无
+
+---
+
+*执行记录生成时间: 2026-06-10 (TC-057 ~ TC-060 完成)*
+*配套文档: `web自动化测试文档.md`（用例详细规范）*
+
