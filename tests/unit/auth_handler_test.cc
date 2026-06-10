@@ -301,7 +301,7 @@ TEST_F(AuthHandlerTest, LoginSetsHttpOnlyCookie) {
     EXPECT_EQ(res.status, 200);
     std::string cookie = res.get_header_value("Set-Cookie");
     EXPECT_TRUE(cookie.find("HttpOnly") != std::string::npos);
-    EXPECT_TRUE(cookie.find("SameSite=Strict") != std::string::npos);
+    EXPECT_TRUE(cookie.find("SameSite=Lax") != std::string::npos);
 }
 
 TEST_F(AuthHandlerTest, LogoutClearsCookie) {
@@ -484,7 +484,7 @@ TEST_F(AuthHandlerTest, LogoutSetsCorrectCookieAttributes) {
     EXPECT_TRUE(cookie.find("Max-Age=0") != std::string::npos);
     EXPECT_TRUE(cookie.find("Path=/") != std::string::npos);
     EXPECT_TRUE(cookie.find("HttpOnly") != std::string::npos);
-    EXPECT_TRUE(cookie.find("SameSite=Strict") != std::string::npos);
+    EXPECT_TRUE(cookie.find("SameSite=Lax") != std::string::npos);
 }
 
 TEST_F(AuthHandlerTest, RegisterAndLoginWorkflow) {
@@ -492,7 +492,7 @@ TEST_F(AuthHandlerTest, RegisterAndLoginWorkflow) {
         std::random_device rd;
         std::string uniqueId = std::to_string(rd()) + "_" + std::to_string(time(nullptr));
         std::string username = "workflow_user_" + uniqueId;
-        
+
         Json::Value regBody;
         regBody["username"] = username;
         regBody["password"] = "securepass123";
@@ -524,6 +524,138 @@ TEST_F(AuthHandlerTest, RegisterAndLoginWorkflow) {
         EXPECT_EQ(loginRes.status, 200);
         EXPECT_TRUE(loginRes.has_header("Set-Cookie"));
     }
+}
+
+// ===========================================================================
+// Regression tests for the auth-cookie hardening (A4, B2, B3).
+//   A4: Set-Cookie uses SameSite=Lax (was Strict)
+//   B2: Set-Cookie has explicit Max-Age matching the 24h session TTL
+//   B3: Cookie parsing does exact-key match (was substring search that
+//       mis-identified "oj_session_xyz" as the session cookie)
+// ===========================================================================
+
+TEST_F(AuthHandlerTest, LoginCookieHasExplicitMaxAge) {
+    // B2: server now sends Max-Age so client-side and server-side TTL agree.
+    {
+        oj::User u;
+        u.setUsername(testUsername);
+        u.setPassword("password");
+        u.setRole("user");
+        u.save();
+    }
+
+    Json::Value body;
+    body["username"] = testUsername;
+    body["password"] = "password";
+    std::string bodyStr = Json::FastWriter().write(body);
+
+    httplib::Request req;
+    req.method = "POST";
+    req.path = "/api/login";
+    req.body = bodyStr;
+
+    httplib::Response res;
+    oj::AuthHandler::login(req, res);
+
+    ASSERT_EQ(res.status, 200);
+    std::string cookie = res.get_header_value("Set-Cookie");
+    EXPECT_TRUE(cookie.find("Max-Age=86400") != std::string::npos)
+        << "Set-Cookie should have Max-Age=86400 to match server-side TTL";
+}
+
+TEST_F(AuthHandlerTest, LogoutCookieHasSameSiteLax) {
+    // A4: SameSite=Lax is the modern default.
+    httplib::Request req;
+    req.method = "POST";
+    req.path = "/api/logout";
+    req.set_header("Cookie", "oj_session=test_token");
+
+    httplib::Response res;
+    oj::AuthHandler::logout(req, res);
+
+    ASSERT_EQ(res.status, 200);
+    std::string cookie = res.get_header_value("Set-Cookie");
+    EXPECT_TRUE(cookie.find("SameSite=Lax") != std::string::npos);
+    EXPECT_TRUE(cookie.find("Max-Age=0") != std::string::npos);
+}
+
+TEST_F(AuthHandlerTest, MeRejectsCookieWithSimilarPrefix) {
+    // B3 regression: previous code did cookie.find("oj_session") which
+    // matched anywhere "oj_session" appeared as a substring. If the client
+    // sent "oj_session_legacy=foo; oj_session=real", the lookup picked up
+    // "oj_session_legacy" as the token. The fix is exact-key matching.
+    auto& sessionManager = oj::SessionManager::getInstance();
+    std::string realToken = sessionManager.createSession(1, "realuser", "user");
+
+    httplib::Request req;
+    req.method = "GET";
+    req.path = "/api/me";
+    req.set_header("Cookie", "oj_session_legacy=should_be_ignored; oj_session=" + realToken);
+
+    httplib::Response res;
+    oj::AuthHandler::me(req, res);
+
+    EXPECT_EQ(res.status, 200)
+        << "Server should pick the exact oj_session cookie, not the legacy one";
+    Json::Value json = parseJson(res.body);
+    EXPECT_EQ(json["username"], "realuser");
+
+    sessionManager.destroySession(realToken);
+}
+
+TEST_F(AuthHandlerTest, MeHandlesMultipleCookiesInAnyOrder) {
+    // B3: order-independence for cookie selection.
+    auto& sessionManager = oj::SessionManager::getInstance();
+    std::string token = sessionManager.createSession(7, "multiuser", "user");
+
+    httplib::Request req;
+    req.method = "GET";
+    req.path = "/api/me";
+    req.set_header("Cookie", "tracker=xyz; oj_session=" + token + "; theme=dark");
+
+    httplib::Response res;
+    oj::AuthHandler::me(req, res);
+
+    EXPECT_EQ(res.status, 200);
+    Json::Value json = parseJson(res.body);
+    EXPECT_EQ(json["username"], "multiuser");
+
+    sessionManager.destroySession(token);
+}
+
+TEST_F(AuthHandlerTest, MeReturnsUnauthorizedWhenSessionCookieMissing) {
+    // Negative case for B3: cookies present but none is the session cookie.
+    httplib::Request req;
+    req.method = "GET";
+    req.path = "/api/me";
+    req.set_header("Cookie", "oj_session_legacy=fake; other=value");
+
+    httplib::Response res;
+    oj::AuthHandler::me(req, res);
+
+    EXPECT_EQ(res.status, 401);
+}
+
+TEST_F(AuthHandlerTest, MeHandlesLeadingWhitespaceInCookies) {
+    auto& sessionManager = oj::SessionManager::getInstance();
+    std::string token = sessionManager.createSession(8, "wsuser", "user");
+
+    httplib::Request req;
+    req.method = "GET";
+    req.path = "/api/me";
+    // httplib's Request::set_header appears to skip leading whitespace in the
+    // value when the string starts with a separator. Use a value that doesn't
+    // start with whitespace but still has padding around cookies.
+    req.set_header("Cookie", "tracker=before;  oj_session=" + token + "  ;  tracker=foo");
+
+    httplib::Response res;
+    oj::AuthHandler::me(req, res);
+
+    EXPECT_EQ(res.status, 200);
+    Json::Value json = parseJson(res.body);
+    EXPECT_EQ(json["username"], "wsuser");
+
+    sessionManager.destroySession(token);
 }
 
 } // namespace

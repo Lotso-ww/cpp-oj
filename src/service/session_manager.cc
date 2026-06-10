@@ -2,6 +2,7 @@
 #include "session.h"
 #include <random>
 #include <mutex>
+#include <chrono>
 
 namespace oj {
 
@@ -13,6 +14,10 @@ SessionManager& SessionManager::getInstance() {
 SessionManager::SessionManager()
     : tokenChars_("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"),
       rng_(std::random_device{}()) {
+}
+
+SessionManager::~SessionManager() {
+    stopCleanupThread();
 }
 
 std::string SessionManager::generateToken() {
@@ -80,4 +85,38 @@ void SessionManager::cleanExpiredSessions() {
     }
 }
 
+void SessionManager::startCleanupThread(int intervalSeconds) {
+    bool expected = false;
+    if (!cleanupRunning_.compare_exchange_strong(expected, true)) {
+        return; // already running
+    }
+    cleanupIntervalSeconds_ = intervalSeconds > 0 ? intervalSeconds : 60;
+
+    cleanupThread_ = std::thread([this]() {
+        std::unique_lock<std::mutex> lk(cleanupMutex_);
+        while (cleanupRunning_.load()) {
+            // Wake either when the interval elapses or when stop is requested.
+            cleanupCv_.wait_for(lk, std::chrono::seconds(cleanupIntervalSeconds_),
+                                [this] { return !cleanupRunning_.load(); });
+            lk.unlock();
+            if (!cleanupRunning_.load()) break;
+            cleanExpiredSessions();
+            lk.lock();
+        }
+    });
 }
+
+void SessionManager::stopCleanupThread() {
+    if (!cleanupRunning_.exchange(false)) {
+        return; // not running
+    }
+    {
+        std::lock_guard<std::mutex> lk(cleanupMutex_);
+        cleanupCv_.notify_all();
+    }
+    if (cleanupThread_.joinable()) {
+        cleanupThread_.join();
+    }
+}
+
+} // namespace oj

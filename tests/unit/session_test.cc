@@ -260,4 +260,72 @@ TEST_F(SessionManagerTest, ConcurrentSessionAccess) {
     manager.destroySession(token);
 }
 
+// ===========================================================================
+// Background cleanup thread (B1).
+// The thread sweeps expired sessions every N seconds so the in-memory map
+// doesn't grow unbounded. We can't easily wait 60s in a test, so these tests
+// focus on lifecycle correctness: idempotent start/stop, no crash on
+// repeated calls, doesn't block shutdown.
+// ===========================================================================
+
+TEST_F(SessionManagerTest, CleanupThreadIdempotentStart) {
+    auto& manager = oj::SessionManager::getInstance();
+    // Stop whatever may have been started by another test, so we start clean.
+    manager.stopCleanupThread();
+    manager.startCleanupThread(60);
+    manager.startCleanupThread(60); // second call is a no-op
+    manager.startCleanupThread(60); // and again
+    manager.stopCleanupThread();
+}
+
+TEST_F(SessionManagerTest, CleanupThreadStopIsIdempotent) {
+    auto& manager = oj::SessionManager::getInstance();
+    manager.stopCleanupThread(); // never started → no-op
+    manager.stopCleanupThread(); // still no-op
+    manager.startCleanupThread(60);
+    manager.stopCleanupThread();
+    manager.stopCleanupThread(); // second stop → no-op
+}
+
+TEST_F(SessionManagerTest, CleanupThreadDoesNotAffectLiveSessions) {
+    auto& manager = oj::SessionManager::getInstance();
+    manager.stopCleanupThread();
+
+    std::string token = manager.createSession(99, "aliveuser", "user");
+
+    // Even with a short interval, fresh sessions must survive several sweeps.
+    manager.startCleanupThread(1);
+    std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+    manager.stopCleanupThread();
+
+    auto* session = manager.getSession(token);
+    EXPECT_NE(session, nullptr);
+    if (session) {
+        EXPECT_EQ(session->getUsername(), "aliveuser");
+    }
+    manager.destroySession(token);
+}
+
+TEST_F(SessionManagerTest, CleanupThreadRemovesExpiredSessions) {
+    auto& manager = oj::SessionManager::getInstance();
+    manager.stopCleanupThread();
+
+    std::string liveToken = manager.createSession(1, "live", "user");
+    std::string expiredToken = manager.createSession(2, "dead", "user");
+
+    auto* expiredSession = manager.getSession(expiredToken);
+    ASSERT_NE(expiredSession, nullptr);
+    expiredSession->setExpiresAt(time(nullptr) - 1);
+
+    // Use a short interval so we can observe the sweep within the test budget.
+    manager.startCleanupThread(1);
+    std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+    manager.stopCleanupThread();
+
+    EXPECT_NE(manager.getSession(liveToken), nullptr);
+    EXPECT_EQ(manager.getSession(expiredToken), nullptr);
+
+    manager.destroySession(liveToken);
+}
+
 } // namespace

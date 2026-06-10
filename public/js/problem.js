@@ -372,10 +372,15 @@
   }
 
   /* Verify auth state with the server (handles new-tab case where
-     sessionStorage is empty but the session cookie is still valid). */
+     sessionStorage is empty but the session cookie is still valid).
+
+     Returns a Promise so init() can await the first verification before
+     rendering the user menu. Without this, users who land on this page
+     without sessionStorage (e.g. new tab, browser restart) would briefly
+     see a "not logged in" UI until /api/me resolves. */
   function verifyAuth() {
-    if (typeof Api === 'undefined' || !Api.me) return;
-    Api.me().then((res) => {
+    if (typeof Api === 'undefined' || !Api.me) return Promise.resolve();
+    return Api.me().then((res) => {
       if (res.ok && res.data && res.data.username) {
         const serverName = String(res.data.username);
         const serverRole = String(res.data.role || 'user');
@@ -384,17 +389,18 @@
           setStoredUsername(serverName);
           setStoredRole(serverRole);
           state.role = serverRole;
-          renderUserMenu();
         } else if (getStoredRole() !== serverRole) {
           setStoredRole(serverRole);
           state.role = serverRole;
-          renderUserMenu();
+        } else {
+          state.role = serverRole;
         }
       } else if (getStoredUsername()) {
         clearStoredUsername();
         clearStoredRole();
         state.role = null;
-        renderUserMenu();
+      } else {
+        state.role = null;
       }
     });
   }
@@ -427,13 +433,16 @@
   /* ---------- Init ---------- */
 
   function init() {
-    state.role = getStoredRole();
-    renderUserMenu();
+    // Render user menu ONLY after we know the server's auth state. Without
+    // this, users without sessionStorage (new tab, browser restart) would
+    // briefly see "登录/注册" until /api/me returns. We also schedule the
+    // non-auth-dependent UI immediately so the page feels responsive.
+    state.role = null;
     bindFilter();
     bindSearch();
     bindTableActions();
     loadProblems();
-    verifyAuth();
+    verifyAuth().then(() => renderUserMenu());
   }
 
   if (document.readyState === 'loading') {

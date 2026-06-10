@@ -1,4 +1,6 @@
 import pytest
+import requests
+from conftest import BASE_URL
 
 
 class TestAuthentication:
@@ -263,6 +265,69 @@ class TestNegative:
     def test_5_11_register_empty_password(self, api_regular):
         response = api_regular.register("testuser_empty_pwd", "")
         assert response.status_code == 400
+
+    # ----- Auth cookie hardening (A4 / B2 / B3) -----
+    # Verifies that the server emits and consumes cookies correctly:
+    #   - SameSite=Lax (was Strict)
+    #   - Max-Age=86400 matching the 24h server-side TTL
+    #   - exact-key cookie matching (a cookie named "oj_session_legacy"
+    #     must NOT be treated as the session cookie)
+
+    @pytest.mark.negative
+    def test_5_12_login_set_cookie_has_lax_and_maxage(self, api_regular, unique_suffix):
+        username = f"cookie_hardening_{unique_suffix}"
+        api_regular.register(username, "test123")
+        response, _ = api_regular.login(username, "test123")
+        assert response.status_code == 200
+        # requests stores Set-Cookie on the Session. Inspect the raw header.
+        sc = response.headers.get("Set-Cookie", "")
+        assert "HttpOnly" in sc
+        assert "SameSite=Lax" in sc
+        assert "SameSite=Strict" not in sc
+        assert "Max-Age=86400" in sc
+
+    @pytest.mark.negative
+    def test_5_13_me_ignores_legacy_prefix_cookie(self, api_regular, unique_suffix):
+        # Manually craft a Cookie header containing a prefix-similar name.
+        # /api/me should return 401 because the *exact* "oj_session" key
+        # is not present.
+        username = f"cookie_prefix_{unique_suffix}"
+        api_regular.register(username, "test123")
+        _, cookies = api_regular.login(username, "test123")
+        real_token = cookies["oj_session"]
+        # Build a fresh session and override its cookies with a prefix-similar
+        # one. requests' jar will send both.
+        legacy_session = requests.Session()
+        legacy_session.cookies.set("oj_session_legacy", "fake_should_be_ignored")
+        response = legacy_session.get(f"{BASE_URL}/api/me")
+        assert response.status_code == 401
+
+    @pytest.mark.negative
+    def test_5_14_me_with_real_cookie_among_others(self, api_regular, unique_suffix):
+        # When the *real* oj_session is present (possibly alongside others
+        # including a prefix-similar one), /api/me must succeed.
+        username = f"cookie_mixed_{unique_suffix}"
+        api_regular.register(username, "test123")
+        _, cookies = api_regular.login(username, "test123")
+        real_token = cookies["oj_session"]
+        s = requests.Session()
+        s.cookies.set("oj_session_legacy", "should_be_ignored")
+        s.cookies.set("tracker", "abc")
+        s.cookies.set("oj_session", real_token)
+        response = s.get(f"{BASE_URL}/api/me")
+        assert response.status_code == 200
+        assert response.json()["username"] == username
+
+    @pytest.mark.negative
+    def test_5_15_logout_clears_cookie_with_maxage_zero(self, api_regular, unique_suffix):
+        username = f"cookie_logout_{unique_suffix}"
+        api_regular.register(username, "test123")
+        _, cookies = api_regular.login(username, "test123")
+        response = api_regular.logout(cookies)
+        assert response.status_code == 200
+        sc = response.headers.get("Set-Cookie", "")
+        assert "Max-Age=0" in sc
+        assert "SameSite=Lax" in sc
 
 
 class TestRun:

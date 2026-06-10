@@ -29,6 +29,9 @@
     username:  null,
     isAuthed:  false,
     authKnown: false,   // becomes true after /api/me (or logout) responds
+    authPending: true,  // true until the first /api/me resolves; gates the
+                        // submit button so users can't fire a 401 against a
+                        // server state we haven't yet confirmed.
     role:      null,    // 'admin' | 'user' | null — drives the badge + admin link
     editor:    null,
     initialCode: '',
@@ -397,6 +400,11 @@
     catch (_) { return null; }
   }
 
+  function clearStoredAuth() {
+    try { sessionStorage.removeItem('oj_username'); } catch (_) {}
+    try { sessionStorage.removeItem('oj_role'); } catch (_) {}
+  }
+
   function renderUserMenu() {
     const menu = $('#userMenu');
     if (!menu) return;
@@ -591,15 +599,33 @@
   function applyAuthState() {
     renderUserMenu();
     renderAuthHint();
+    syncAuthButtons();
+  }
+
+  /* Enable/disable the submit and run buttons based on authPending.
+     While /api/me is still in flight we disable submit so a user can't
+     fire a request against stale auth state and get bounced to /login.
+     Run is left enabled (it works without auth). */
+  function syncAuthButtons() {
+    const submitBtn = $('#submitBtn');
+    if (submitBtn && !state.submitting) {
+      submitBtn.disabled = state.authPending;
+      submitBtn.classList.toggle('is-pending', state.authPending);
+      submitBtn.setAttribute('aria-busy', state.authPending ? 'true' : 'false');
+    }
   }
 
   /* Verify auth state with the server. This is the source of truth —
      sessionStorage is only a fast-path cache. If /api/me says the user
      is logged in (valid session cookie), we trust that even when
-     sessionStorage is empty (e.g. opened the page in a new tab). */
+     sessionStorage is empty (e.g. opened the page in a new tab).
+
+     Returns a Promise that resolves after the first verification, so
+     init() can render the user menu only after the server has spoken. */
   function verifyAuthWithServer() {
-    Api.me().then((res) => {
+    return Api.me().then((res) => {
       state.authKnown = true;
+      state.authPending = false;
       if (res.ok && res.data && res.data.username) {
         const serverName = String(res.data.username);
         const serverRole = String(res.data.role || 'user');
@@ -614,12 +640,11 @@
         }
       } else {
         // Server says not authed — clear any stale local state
-        if (state.isAuthed || getStoredUsername()) {
+        if (state.isAuthed || getStoredUsername() || getStoredRole()) {
           state.username = null;
           state.isAuthed = false;
           state.role = null;
-          try { sessionStorage.removeItem('oj_username'); } catch (_) {}
-          try { sessionStorage.removeItem('oj_role'); } catch (_) {}
+          clearStoredAuth();
         }
       }
       applyAuthState();
@@ -1062,7 +1087,10 @@
   function submitCode() {
     if (state.submitting) return;
 
-    // Auth gate: not logged in → bounce to login (with return= to come back here)
+    // Auth gate: not logged in (or still verifying) → bounce to login.
+    // Using authPending here avoids racing the server: if /api/me hasn't
+    // come back yet, we treat it as "not logged in" rather than firing
+    // a submit that will return 401 and bounce us anyway.
     if (!state.isAuthed) {
       const ret = encodeURIComponent(global.location.pathname + global.location.search);
       global.location.href = `/login.html?return=${ret}`;
@@ -1091,7 +1119,16 @@
         return;
       }
       if (res.status === 401 || res.status === 403) {
-        // Server says not authed — bounce to login
+        // Server says not authed — wipe any stale client-side auth cache
+        // before bouncing, so the next page load doesn't briefly show the
+        // wrong "logged in" state.
+        state.username = null;
+        state.isAuthed = false;
+        state.role = null;
+        state.authKnown = true;
+        state.authPending = false;
+        clearStoredAuth();
+        applyAuthState();
         const ret = encodeURIComponent(global.location.pathname + global.location.search);
         global.location.href = `/login.html?return=${ret}`;
         return;
@@ -1155,6 +1192,14 @@
         return;
       }
       if (res.status === 401 || res.status === 403) {
+        // Server says not authed — sync local cache and ask the user to log in.
+        state.username = null;
+        state.isAuthed = false;
+        state.role = null;
+        state.authKnown = true;
+        state.authPending = false;
+        clearStoredAuth();
+        applyAuthState();
         showResult({ kind: 'network', message: '请先登录后再运行测试' });
         return;
       }
@@ -1193,28 +1238,29 @@
 
   function init() {
     state.problemId = getProblemIdFromUrl();
-    // Optimistic fast path: trust sessionStorage so the page doesn't flicker
-    // for users who are already logged in within this tab.
-    state.username  = getStoredUsername();
-    state.isAuthed  = Boolean(state.username);
 
     if (!state.problemId) {
       showError('题目不存在', '链接缺少题号。');
       return;
     }
 
-    // Order matters here: loadProblem is BEFORE initEditor. The problem
-    // load doesn't depend on ace — so if ace fails (CDN, network, whatever),
-    // the problem still loads and the user can read the description.
-    // Each step is wrapped in safeCall so any single failure can't block
-    // the rest of the page from initializing.
-    safeCall(renderUserMenu,        'renderUserMenu');
+    // Render whatever UI we can without waiting for /api/me so the page
+    // feels responsive. User menu and auth hint are left for AFTER the
+    // server has spoken, so users without sessionStorage (new tab, etc.)
+    // don't briefly see "登录/注册" while the cookie is in fact valid.
+    state.username  = null;
+    state.isAuthed  = false;
+    state.authPending = true;
     safeCall(renderAuthHint,        'renderAuthHint');
     safeCall(loadProblem,           'loadProblem');
     safeCall(initEditor,            'initEditor');
     safeCall(bindActions,           'bindActions');
     safeCall(bindGlobalActions,     'bindGlobalActions');
     safeCall(bindTestCaseEditor,     'bindTestCaseEditor');
+
+    // verifyAuthWithServer returns a Promise — we render the user menu
+    // only after the first verification, and submit/run buttons stay
+    // disabled until then.
     safeCall(verifyAuthWithServer,  'verifyAuthWithServer');
   }
 

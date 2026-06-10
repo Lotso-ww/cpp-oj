@@ -1,6 +1,7 @@
 #include "server/server.h"
 #include "utils/logger.h"
 #include "utils/config.h"
+#include "service/session_manager.h"
 #include <iostream>
 #include <csignal>
 #include <cstdlib>
@@ -47,12 +48,19 @@ int main(int argc, char* argv[]) {
     
     Server server;
     g_server = &server;
-    
+
+    // Start background session cleanup. Sweeps expired sessions every 60s
+    // so the in-memory map doesn't grow unbounded when users churn. The
+    // thread is stopped via SessionManager's destructor on program exit.
+    oj::SessionManager::getInstance().startCleanupThread(60);
+
     if (!server.start()) {
         LOG(LogLevel::FATAL) << "Failed to start server";
+        oj::SessionManager::getInstance().stopCleanupThread();
         return 1;
     }
-    
+
+    oj::SessionManager::getInstance().stopCleanupThread();
     LOG(LogLevel::INFO) << "OJ Server stopped";
     return 0;
 }
