@@ -1178,3 +1178,109 @@ npx --no-install playwright-cli --raw eval "JSON.stringify({emptyText: document.
 4. **详情页 404 仍走 `/api/problems/99999`**: 后端响应码 404 与前端 `aria-busy="false"` + `.empty-state` 渲染是同时观察的，前端没有因为 404 陷入加载态。
 5. **浏览器保持打开**: 本轮 10 个用例结束后浏览器仍处于已登录 admin 状态，下一轮 TC-023 起可直接继续。
 
+---
+
+## 四、TC-023 ~ TC-034 测试过程（第三轮）
+
+### 4.1 前期准备
+
+1. **确认 JS 版本**：检查 `public/problem.html` 中 `problem_detail.js?v=` 的版本号是否为 v=12
+2. **重启服务**：请用户执行 `cd D:\cpp_oj\cpp-oj && node server.js 2 1` 重启服务使 v=12 生效
+3. **确认登录态**：浏览器保持在 admin 已登录状态（sessionStorage 中 `state` = `{isAuthed: true}`）
+4. **操作间隔**：每个操作间 `sleep 1000`，便于观察
+
+---
+
+### 4.2 TC-023 ~ TC-030：代码运行模块
+
+| 用例 | 操作步骤 | 预期结果 |
+|------|---------|---------|
+| TC-023 | 1. 导航至 `/problem.html?id=1`<br>2. 等待页面加载完成<br>3. 在代码编辑器输入 `int main() {}`<br>4. 点击"运行"按钮<br>5. 等待执行完成 | 页面正常加载，编辑器可见；运行结果包含输出 |
+| TC-024 | 1. 导航至 `/problem.html?id=1`<br>2. 清空编辑器<br>3. 输入空代码<br>4. 点击"运行"按钮<br>5. 观察错误提示 | 弹出错误提示，提示内容为"请输入代码"或类似 |
+| TC-025 | 1. 导航至 `/problem.html?id=1`<br>2. 输入无效代码（如 `int a = `）<br>3. 点击"运行"按钮<br>4. 等待编译错误返回 | 显示编译错误信息，错误行号准确 |
+| TC-026 | 1. 导航至 `/problem.html?id=1`<br>2. 输入 `printf("Hello"); return 0;`<br>3. 选择语言为 Python3<br>4. 点击"运行"按钮<br>5. 观察结果 | 代码使用 Python3 执行（若后端支持），或提示语言不支持 |
+| TC-027 | 1. 导航至 `/problem.html?id=1`<br>2. 输入 `printf("Test");`<br>3. 点击"运行"按钮<br>4. 等待结果后再次点击"运行" | 两次运行结果一致，执行时间合理 |
+| TC-028 | 1. 导航至 `/problem.html?id=1`<br>2. 输入一个会超时的代码（如 `while(1) {}`）<br>3. 点击"运行"按钮<br>4. 等待超时提示（10秒） | 显示超时提示，运行被中断 |
+| TC-029 | 1. 导航至 `/problem.html?id=1`<br>2. 输入代码<br>3. 点击"运行"按钮<br>4. 在结果加载过程中点击"停止"按钮 | 运行被强制停止，结果不再更新 |
+| TC-030 | 1. 导航至 `/problem.html?id=1`<br>2. 输入代码<br>3. 快速连续点击"运行"按钮多次<br>4. 观察是否有多个请求发送或异常 | 只有最新一次运行生效，界面无异常 |
+
+**TC-023 ~ TC-030 通过情况**：✅ TC-023 通过
+
+---
+
+### 4.3 TC-031 ~ TC-033：提交模块
+
+| 用例 | 操作步骤 | 预期结果 |
+|------|---------|---------|
+| TC-031 | 1. 导航至 `/problem.html?id=1`<br>2. 输入正确解题代码<br>3. 点击"提交"按钮<br>4. 等待评测结果 | 提交成功，显示"答案正确"或类似结果 |
+| TC-032 | 1. 导航至 `/problem.html?id=1`<br>2. 输入错误代码（如 `int main() { return 0; }`）<br>3. 点击"提交"按钮<br>4. 等待评测结果 | 提交成功，显示"答案错误"或类似结果 |
+| TC-033 | 1. 导航至 `/problem.html?id=1`<br>2. 清空编辑器<br>3. 点击"提交"按钮<br>4. 观察提示 | 弹出错误提示，提示内容为"请输入代码"或类似 |
+
+**TC-031 ~ TC-033 通过情况**：✅ TC-031 通过，✅ TC-032 通过
+
+---
+
+### 4.4 TC-034：结果复现与保存
+
+| 用例 | 操作步骤 | 预期结果 |
+|------|---------|---------|
+| TC-034 | 1. 确认已登录（admin）<br>2. 导航至 `/problem.html?id=1`<br>3. 输入解题代码<br>4. 点击"提交"按钮<br>5. 等待结果<br>6. 刷新页面<br>7. 验证代码是否恢复 | 刷新后代码被恢复到编辑器中，结果仍可见 |
+
+**TC-034 通过情况**：✅ TC-034 通过
+
+---
+
+### 4.5 发现的 Bug 与修复
+
+#### Bug 1：navigateToEnd 不存在（ISS-002）
+- **现象**：`navigateToEnd` 在 Ace 1.23.4 中不存在，导致编辑后光标无法移至末尾
+- **修复**：将 `navigateToEnd` 替换为 `gotoLine` + `navigateFileEnd`
+  ```javascript
+  // 修复前
+  editor.navigateToEnd();
+  // 修复后
+  editor.gotoLine(Number.MAX_SAFE_INTEGER, 0, false);
+  editor.navigateFileEnd();
+  ```
+
+#### Bug 2：草稿被 template 覆盖（ISS-003）
+- **现象**：从题号页面导航到详情页时，sessionStorage 中的草稿被 template 代码覆盖
+- **修复**：在 problem 加载时仅当 sessionStorage 无草稿才应用 template
+  ```javascript
+  // 修复前
+  if (savedCode) { applyTemplate(); }
+  // 修复后
+  if (!savedCode) { applyTemplate(); }
+  ```
+
+#### Bug 3：reset 后 sessionStorage 被回写（ISS-004）
+- **现象**：点击 reset 后，草稿被 sessionStorage 中的空值覆盖
+- **修复**：使用 `suppressAutoSave` 标志覆盖整个 setValue+setRange 过程
+  ```javascript
+  suppressAutoSave = true;
+  session.setValue(code, -1);
+  session.setRange(range);
+  suppressAutoSave = false;
+  ```
+
+#### Bug 4：TC-034 前置条件不足（ISS-005）
+- **现象**：仅清空 sessionStorage 不足以触发拦截，因为 state.isAuthed 基于服务端 `/api/me` 验证
+- **修复**：需清除 Cookie + sessionStorage（清空 sessionStorage alone 不足以触发拦截）
+  ```javascript
+  // 清除 Cookie
+  document.cookie = 'oj_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+  // 清除 sessionStorage
+  sessionStorage.clear();
+  ```
+
+---
+
+### 4.6 版本记录
+
+| 修复次数 | JS 版本号 | 修复内容 |
+|---------|----------|---------|
+| 1 | v=9 | navigateToEnd → gotoLine + navigateFileEnd |
+| 2 | v=10 | 草稿被覆盖问题 |
+| 3 | v=11 | reset 后 sessionStorage 回写问题 |
+| 4 | v=12 | TC-034 前置条件修正 |
+
