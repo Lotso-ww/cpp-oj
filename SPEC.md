@@ -241,10 +241,10 @@ mysql -u lotso oj_system
 - [✅️] 大屏落地页
 
 ### Phase 6 - 安全与部署
-- [] 管理员权限校验
-- [] 用户认证（Session/Cookie）
-- [] 基础输入校验
-- [] 部署文档, README文档
+- [✅️] 管理员权限校验
+- [✅️] 用户认证（Session/Cookie）
+- [✅️] 基础输入校验
+- [✅️] 部署文档, README文档
 
 ---
 
