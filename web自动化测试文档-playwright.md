@@ -1180,109 +1180,383 @@ npx --no-install playwright-cli --raw eval "JSON.stringify({emptyText: document.
 
 ---
 
-## 四、TC-023 ~ TC-034 测试过程（第三轮）
+## 四、TC-023 ~ TC-034 测试执行记录（第三轮：代码运行与提交模块）
 
-### 4.1 前期准备
+**执行时间**: 2026-06-10
+**前置登录态**: admin 已登录
+**浏览器模式**: 有头模式 (`--headed`)
+**测试题目**: id=1 两数之和 (Easy)
 
-1. **确认 JS 版本**：检查 `public/problem.html` 中 `problem_detail.js?v=` 的版本号是否为 v=12
-2. **重启服务**：请用户执行 `cd D:\cpp_oj\cpp-oj && node server.js 2 1` 重启服务使 v=12 生效
-3. **确认登录态**：浏览器保持在 admin 已登录状态（sessionStorage 中 `state` = `{isAuthed: true}`）
-4. **操作间隔**：每个操作间 `sleep 1000`，便于观察
-
----
-
-### 4.2 TC-023 ~ TC-030：代码运行模块
-
-| 用例 | 操作步骤 | 预期结果 |
-|------|---------|---------|
-| TC-023 | 1. 导航至 `/problem.html?id=1`<br>2. 等待页面加载完成<br>3. 在代码编辑器输入 `int main() {}`<br>4. 点击"运行"按钮<br>5. 等待执行完成 | 页面正常加载，编辑器可见；运行结果包含输出 |
-| TC-024 | 1. 导航至 `/problem.html?id=1`<br>2. 清空编辑器<br>3. 输入空代码<br>4. 点击"运行"按钮<br>5. 观察错误提示 | 弹出错误提示，提示内容为"请输入代码"或类似 |
-| TC-025 | 1. 导航至 `/problem.html?id=1`<br>2. 输入无效代码（如 `int a = `）<br>3. 点击"运行"按钮<br>4. 等待编译错误返回 | 显示编译错误信息，错误行号准确 |
-| TC-026 | 1. 导航至 `/problem.html?id=1`<br>2. 输入 `printf("Hello"); return 0;`<br>3. 选择语言为 Python3<br>4. 点击"运行"按钮<br>5. 观察结果 | 代码使用 Python3 执行（若后端支持），或提示语言不支持 |
-| TC-027 | 1. 导航至 `/problem.html?id=1`<br>2. 输入 `printf("Test");`<br>3. 点击"运行"按钮<br>4. 等待结果后再次点击"运行" | 两次运行结果一致，执行时间合理 |
-| TC-028 | 1. 导航至 `/problem.html?id=1`<br>2. 输入一个会超时的代码（如 `while(1) {}`）<br>3. 点击"运行"按钮<br>4. 等待超时提示（10秒） | 显示超时提示，运行被中断 |
-| TC-029 | 1. 导航至 `/problem.html?id=1`<br>2. 输入代码<br>3. 点击"运行"按钮<br>4. 在结果加载过程中点击"停止"按钮 | 运行被强制停止，结果不再更新 |
-| TC-030 | 1. 导航至 `/problem.html?id=1`<br>2. 输入代码<br>3. 快速连续点击"运行"按钮多次<br>4. 观察是否有多个请求发送或异常 | 只有最新一次运行生效，界面无异常 |
-
-**TC-023 ~ TC-030 通过情况**：✅ TC-023 通过
+> **执行要点**:
+> 1. 使用 `window.editor.env.editor.setValue()` 操作 Ace 编辑器
+> 2. 代码中含特殊字符(`<`, `>`)时使用 `run-code` 或通过文件方式传入
+> 3. 每个操作之间 `sleep 1s` 便于肉眼观察
 
 ---
 
-### 4.3 TC-031 ~ TC-033：提交模块
+### 4.1 TC-023: 提交代码-答案正确 (AC)
 
-| 用例 | 操作步骤 | 预期结果 |
-|------|---------|---------|
-| TC-031 | 1. 导航至 `/problem.html?id=1`<br>2. 输入正确解题代码<br>3. 点击"提交"按钮<br>4. 等待评测结果 | 提交成功，显示"答案正确"或类似结果 |
-| TC-032 | 1. 导航至 `/problem.html?id=1`<br>2. 输入错误代码（如 `int main() { return 0; }`）<br>3. 点击"提交"按钮<br>4. 等待评测结果 | 提交成功，显示"答案错误"或类似结果 |
-| TC-033 | 1. 导航至 `/problem.html?id=1`<br>2. 清空编辑器<br>3. 点击"提交"按钮<br>4. 观察提示 | 弹出错误提示，提示内容为"请输入代码"或类似 |
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-023 |
+| **用例名称** | 提交代码-答案正确 (AC) |
+| **测试目的** | 验证 AC 全流程 |
+| **前置条件** | admin 已登录，进入 id=1 详情页 |
+| **测试步骤** | 1. 在编辑器输入AC代码<br>2. 点击"提交"按钮<br>3. 等待结果 |
+| **预期结果** | AC状态, "通过", 全部用例通过 |
 
-**TC-031 ~ TC-033 通过情况**：✅ TC-031 通过，✅ TC-032 通过
+**执行命令**:
+```bash
+# 1. 设置AC代码
+npx --no-install playwright-cli run-code "async page => { await page.evaluate(() => { window.editor.env.editor.setValue('#include <iostream>\\nusing namespace std;\\nint main() {\\n    int a, b;\\n    cin >> a >> b;\\n    cout << a + b << endl;\\n    return 0;\\n}', -1); }); }"
 
----
+# 2. 点击提交
+npx --no-install playwright-cli click e93
+```
 
-### 4.4 TC-034：结果复现与保存
+**执行结果**: ✅ 通过
 
-| 用例 | 操作步骤 | 预期结果 |
-|------|---------|---------|
-| TC-034 | 1. 确认已登录（admin）<br>2. 导航至 `/problem.html?id=1`<br>3. 输入解题代码<br>4. 点击"提交"按钮<br>5. 等待结果<br>6. 刷新页面<br>7. 验证代码是否恢复 | 刷新后代码被恢复到编辑器中，结果仍可见 |
-
-**TC-034 通过情况**：✅ TC-034 通过
-
----
-
-### 4.5 发现的 Bug 与修复
-
-#### Bug 1：navigateToEnd 不存在（ISS-002）
-- **现象**：`navigateToEnd` 在 Ace 1.23.4 中不存在，导致编辑后光标无法移至末尾
-- **修复**：将 `navigateToEnd` 替换为 `gotoLine` + `navigateFileEnd`
-  ```javascript
-  // 修复前
-  editor.navigateToEnd();
-  // 修复后
-  editor.gotoLine(Number.MAX_SAFE_INTEGER, 0, false);
-  editor.navigateFileEnd();
-  ```
-
-#### Bug 2：草稿被 template 覆盖（ISS-003）
-- **现象**：从题号页面导航到详情页时，sessionStorage 中的草稿被 template 代码覆盖
-- **修复**：在 problem 加载时仅当 sessionStorage 无草稿才应用 template
-  ```javascript
-  // 修复前
-  if (savedCode) { applyTemplate(); }
-  // 修复后
-  if (!savedCode) { applyTemplate(); }
-  ```
-
-#### Bug 3：reset 后 sessionStorage 被回写（ISS-004）
-- **现象**：点击 reset 后，草稿被 sessionStorage 中的空值覆盖
-- **修复**：使用 `suppressAutoSave` 标志覆盖整个 setValue+setRange 过程
-  ```javascript
-  suppressAutoSave = true;
-  session.setValue(code, -1);
-  session.setRange(range);
-  suppressAutoSave = false;
-  ```
-
-#### Bug 4：TC-034 前置条件不足（ISS-005）
-- **现象**：仅清空 sessionStorage 不足以触发拦截，因为 state.isAuthed 基于服务端 `/api/me` 验证
-- **修复**：需清除 Cookie + sessionStorage（清空 sessionStorage alone 不足以触发拦截）
-  ```javascript
-  // 清除 Cookie
-  document.cookie = 'oj_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-  // 清除 sessionStorage
-  sessionStorage.clear();
-  ```
+- AC状态, "通过", "全部用例通过"
+- 执行时间: 1ms
 
 ---
 
-### 4.6 版本记录
+### 4.2 TC-024: 提交代码-答案错误 (WA)
 
-| 修复次数 | JS 版本号 | 修复内容 |
-|---------|----------|---------|
-| 1 | v=9 | navigateToEnd → gotoLine + navigateFileEnd |
-| 2 | v=10 | 草稿被覆盖问题 |
-| 3 | v=11 | reset 后 sessionStorage 回写问题 |
-| 4 | v=12 | TC-034 前置条件修正 |
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-024 |
+| **用例名称** | 提交代码-答案错误 (WA) |
+| **测试目的** | 验证 WA 判题 |
+| **前置条件** | admin 已登录，进入 id=1 详情页 |
+| **测试步骤** | 1. 编辑器输入 `cout << a - b << endl;`（输出差值）<br>2. 点击"提交" |
+| **预期结果** | WA状态, "答案错误", "输出与预期不符" |
+
+**执行命令**:
+```bash
+# 设置WA代码(输出a-b)
+npx --no-install playwright-cli run-code "async page => { await page.evaluate(() => { window.editor.env.editor.setValue('#include <iostream>\\nusing namespace std;\\nint main() {\\n    int a, b;\\n    cin >> a >> b;\\n    cout << a - b << endl;\\n    return 0;\\n}', -1); }); }"
+
+npx --no-install playwright-cli click e93
+```
+
+**执行结果**: ✅ 通过
+
+- WA状态, "答案错误", "输出与预期不符"
+- 输出: -1 (预期3)
+
+---
+
+### 4.3 TC-025: 提交代码-编译错误 (CE)
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-025 |
+| **用例名称** | 提交代码-编译错误 (CE) |
+| **测试目的** | 验证 CE 判题 |
+| **前置条件** | admin 已登录，进入 id=1 详情页 |
+| **测试步骤** | 1. 编辑器输入 `int main(){ cout<<"x" }`（缺using namespace）<br>2. 点击"提交" |
+| **预期结果** | CE状态, "编译错误", 错误信息包含 `error:` |
+
+**执行命令**:
+```bash
+# 设置CE代码(缺少using namespace)
+npx --no-install playwright-cli run-code "async page => { await page.evaluate(() => { window.editor.env.editor.setValue('int main(){ cout<<\"x\" }', -1); }); }"
+
+npx --no-install playwright-cli click e93
+```
+
+**执行结果**: ✅ 通过
+
+- CE状态, "编译错误", "代码无法编译"
+- 错误信息: `'cout' was not declared in this scope`
+
+---
+
+### 4.4 TC-026: 提交代码-运行超时 (TLE)
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-026 |
+| **用例名称** | 提交代码-运行超时 (TLE) |
+| **测试目的** | 验证超时机制（5s） |
+| **前置条件** | admin 已登录，进入 id=1 详情页 |
+| **测试步骤** | 1. 编辑器输入 `int main(){ while(true){} return 0; }`<br>2. 点击"提交"<br>3. 等待≤8s |
+| **预期结果** | TLE状态, "运行超时", 约5s后返回 |
+
+**执行命令**:
+```bash
+# 设置TLE代码(无限循环)
+npx --no-install playwright-cli run-code "async page => { await page.evaluate(() => { window.editor.env.editor.setValue('int main(){ while(true){} return 0; }', -1); }); }"
+
+npx --no-install playwright-cli click e93
+# 等待约8秒
+```
+
+**执行结果**: ✅ 通过
+
+- TLE状态, "运行超时", "超出时间限制"
+- 执行时间: 4992ms
+
+---
+
+### 4.5 TC-027: 提交代码-运行错误 (RE)
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-027 |
+| **用例名称** | 提交代码-运行错误 (RE) |
+| **测试目的** | 验证 RE 判题 |
+| **前置条件** | admin 已登录，进入 id=1 详情页 |
+| **测试步骤** | 1. 编辑器输入 `int main(){ int* p=nullptr; *p=1; return 0; }`<br>2. 点击"提交" |
+| **预期结果** | RE状态, "运行错误", "程序异常退出" |
+
+**执行命令**:
+```bash
+# 设置RE代码(空指针解引用)
+npx --no-install playwright-cli run-code "async page => { await page.evaluate(() => { window.editor.env.editor.setValue('int main(){ int* p=nullptr; *p=1; return 0; }', -1); }); }"
+
+npx --no-install playwright-cli click e93
+```
+
+**执行结果**: ✅ 通过
+
+- RE状态, "运行错误", "程序异常退出"
+- Signal 11 (SIGSEGV)
+
+---
+
+### 4.6 TC-028: 提交代码-空代码
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-028 |
+| **用例名称** | 提交代码-空代码 |
+| **测试目的** | 验证空代码前端拦截 |
+| **前置条件** | admin 已登录，进入 id=1 详情页 |
+| **测试步骤** | 1. 清空编辑器<br>2. 点击"提交" |
+| **预期结果** | 提示"代码不能为空"，不发请求 |
+
+**执行命令**:
+```bash
+# 清空编辑器
+npx --no-install playwright-cli run-code "async page => { await page.evaluate(() => { window.editor.env.editor.setValue('', -1); }); }"
+
+npx --no-install playwright-cli click e93
+```
+
+**执行结果**: ✅ 通过
+
+- Alert: "ERR", "网络异常", "代码不能为空"
+- 前端拦截，未发送请求
+
+---
+
+### 4.7 TC-029: 运行测试-官方用例
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-029 |
+| **用例名称** | 运行测试-官方用例 |
+| **测试目的** | 验证运行测试功能 |
+| **前置条件** | admin 已登录，进入 id=1 详情页 |
+| **测试步骤** | 1. 输入AC代码<br>2. 点击"运行测试" |
+| **预期结果** | 显示每用例结果，2/2通过 |
+
+**执行命令**:
+```bash
+# 设置AC代码
+npx --no-install playwright-cli run-code "async page => { await page.evaluate(() => { window.editor.env.editor.setValue('#include <iostream>\\nusing namespace std;\\nint main() {\\n    int a, b;\\n    cin >> a >> b;\\n    cout << a + b << endl;\\n    return 0;\\n}', -1); }); }"
+
+npx --no-install playwright-cli click e91  # 运行测试
+```
+
+**执行结果**: ✅ 通过
+
+- 2/2 全部用例通过
+- #1 官方 AC 0ms, #2 官方 AC 1ms
+- 每行显示输入、预期、实际输出
+
+---
+
+### 4.8 TC-030: 运行测试-添加自定义用例
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-030 |
+| **用例名称** | 运行测试-添加自定义用例 |
+| **测试目的** | 验证自定义用例功能 |
+| **前置条件** | admin 已登录，进入 id=1 详情页 |
+| **测试步骤** | 1. 点击"+ 添加用例"<br>2. 输入自定义用例 `42 58`<br>3. 运行测试 |
+| **预期结果** | 官方用例+自定义用例分别显示 |
+
+**执行命令**:
+```bash
+# 点击添加用例
+npx --no-install playwright-cli click e43
+
+# 填写自定义输入
+npx --no-install playwright-cli fill e255 "42 58"
+
+# 运行测试
+npx --no-install playwright-cli click e91
+```
+
+**执行结果**: ✅ 通过
+
+- "全部 2 个官方用例通过，另运行 1 个自定义用例"
+- #3 自定义 完成 0ms, 实际输出100
+- 自定义用例不显示"预期"列
+
+---
+
+### 4.9 TC-031: 重置代码按钮
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-031 |
+| **用例名称** | 重置代码按钮 |
+| **测试目的** | 验证重置功能 |
+| **前置条件** | admin 已登录，编辑器已被修改 |
+| **测试步骤** | 1. 修改编辑器内容<br>2. 点击"重置"按钮 |
+| **预期结果** | 恢复默认模板，resultArea清空 |
+
+**执行命令**:
+```bash
+# 点击重置
+npx --no-install playwright-cli click e90
+```
+
+**执行结果**: ✅ 通过
+
+- 编辑器恢复为默认模板: `// 在这里编写你的 C++ 代码`
+- 结果区域清空
+
+---
+
+### 4.10 TC-032: 代码编辑后重新加载页面
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-032 |
+| **用例名称** | 代码编辑后重新加载页面 |
+| **测试目的** | 验证 sessionStorage 持久化 |
+| **前置条件** | 进入 id=1 详情页 |
+| **测试步骤** | 1. 在编辑器输入 `MY_CUSTOM_CODE`<br>2. 等待 ≥200ms<br>3. 刷新页面 |
+| **预期结果** | 重新加载后编辑器仍保留输入内容 |
+
+**执行命令**:
+```bash
+# 设置自定义代码
+npx --no-install playwright-cli run-code "async page => { await page.evaluate(() => { window.editor.env.editor.setValue('MY_CUSTOM_CODE', -1); }); }"
+
+# 刷新页面
+npx --no-install playwright-cli reload
+```
+
+**执行结果**: ✅ 通过
+
+- 刷新后编辑器仍保留 "MY_CUSTOM_CODE"
+
+---
+
+### 4.11 TC-033: 自定义用例可删除
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-033 |
+| **用例名称** | 自定义用例可删除 |
+| **测试目的** | 验证删除自定义用例交互 |
+| **前置条件** | admin 已登录，进入 id=1 详情页 |
+| **测试步骤** | 1. 点击"+ 添加用例" 3次<br>2. 删除第2个自定义行 |
+| **预期结果** | 自定义用例被删除，编号连续 |
+
+**执行命令**:
+```bash
+# 添加3个自定义用例
+npx --no-install playwright-cli click e33
+npx --no-install playwright-cli click e33
+npx --no-install playwright-cli click e33
+
+# 获取快照找到删除按钮
+npx --no-install playwright-cli snapshot
+
+# 删除第2个(e213)
+npx --no-install playwright-cli click e213
+```
+
+**执行结果**: ✅ 通过
+
+- 删除后剩余2个自定义用例
+- 编号连续: #3, #4
+- 官方用例无删除按钮
+
+---
+
+### 4.12 TC-034: 未登录提交被拦截
+
+| 项目 | 内容 |
+|------|------|
+| **用例ID** | TC-034 |
+| **用例名称** | 未登录提交被拦截 |
+| **测试目的** | 验证提交鉴权 |
+| **前置条件** | 普通用户访问（已退出登录） |
+| **测试步骤** | 1. 退出登录<br>2. 在未登录状态点击"提交" |
+| **预期结果** | 跳转到登录页，带return参数 |
+
+**执行命令**:
+```bash
+# 退出登录
+npx --no-install playwright-cli click "button:has-text('退出')"
+
+# 获取快照确认登录状态
+npx --no-install playwright-cli snapshot
+
+# 点击提交
+npx --no-install playwright-cli click e57
+```
+
+**执行结果**: ✅ 通过
+
+- 退出后顶栏显示"登录"、"注册"链接
+- 点击提交按钮后跳转: `/login.html?return=%2Fproblem.html%3Fid%3D1`
+- 页面显示"登录后即可提交代码"
+
+---
+
+## 三、本轮测试结果汇总
+
+### 3.1 测试结果统计
+
+| 用例ID | 用例名称 | 状态 | 关键断言 |
+|--------|----------|------|---------|
+| TC-023 | 提交代码-答案正确 (AC) | ✅ 通过 | AC状态, 通过, 1ms |
+| TC-024 | 提交代码-答案错误 (WA) | ✅ 通过 | WA状态, 答案错误 |
+| TC-025 | 提交代码-编译错误 (CE) | ✅ 通过 | CE状态, 编译错误 |
+| TC-026 | 提交代码-运行超时 (TLE) | ✅ 通过 | TLE状态, 4992ms |
+| TC-027 | 提交代码-运行错误 (RE) | ✅ 通过 | RE状态, Signal 11 |
+| TC-028 | 提交代码-空代码 | ✅ 通过 | 提示"代码不能为空" |
+| TC-029 | 运行测试-官方用例 | ✅ 通过 | 2/2通过, AC |
+| TC-030 | 运行测试-添加自定义用例 | ✅ 通过 | 官方+自定义用例运行 |
+| TC-031 | 重置代码按钮 | ✅ 通过 | 恢复默认模板 |
+| TC-032 | 代码编辑后重新加载页面 | ✅ 通过 | 内容保持 |
+| TC-033 | 自定义用例可删除 | ✅ 通过 | 删除后编号连续 |
+| TC-034 | 未登录提交被拦截 | ✅ 通过 | 跳转登录页 |
+
+**测试结果汇总**: 12 / 12 全部通过 (100%)
+
+### 3.2 关键操作技巧
+
+1. **编辑器操作**: 使用 `window.editor.env.editor.setValue(code, -1)` 设置代码
+2. **特殊字符处理**: 代码中含 `<`, `>` 时使用 `run-code` 方式传入
+3. **按钮ref变化**: 点击后按钮ref可能变化，需重新snapshot
+
+### 3.3 Ace编辑器访问路径
+
+```
+window.editor.env.editor.setValue(code, -1)  // 设置代码
+window.editor.env.editor.getValue()           // 获取代码
+```
 
 ---
 
